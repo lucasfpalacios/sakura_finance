@@ -1,4 +1,6 @@
-readme_content = """# 🌸 Sakura Finance
+# 🌸 Sakura Finance | Full-Stack Wealth & Debt Tracker
+
+[![English](https://img.shields.io/badge/Language-English-blue)](#english) [![Español](https://img.shields.io/badge/Idioma-Español-green)](#español)
 
 🇬🇧 English:
 

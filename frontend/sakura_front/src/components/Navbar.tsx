@@ -55,13 +55,13 @@ export default function Navbar() {
   );
 
   return (
-    <nav className="sticky top-0 z-50 w-full bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-xl border-b border-slate-200 dark:border-[#2a2a2a] px-4 sm:px-6 lg:px-8 py-3">
+    <nav className="sticky top-0 z-50 w-full bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-xl border-b border-slate-200 dark:border-[#2a2a2a] px-4 sm:px-6 lg:px-8 py-3 pt-[calc(0.75rem+env(safe-area-inset-top))]">
       <div className="max-w-[1440px] mx-auto flex items-center justify-between">
         {/* Logo */}
         <Link href="/" className="shrink-0">
           <div className="flex items-center gap-2 cursor-pointer">
             <span className="text-2xl">🌸</span>
-            <h1 className="text-xl lg:text-2xl font-bold text-slate-950 dark:text-white tracking-tight">
+            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-950 dark:text-white tracking-tight">
               Finanzas<span className="text-pink-500 dark:text-[#FFB7C5]">Sakura</span>
             </h1>
           </div>
@@ -185,7 +185,7 @@ export default function Navbar() {
         </div>
 
         {/* Mobile Menu Button */}
-        <div className="lg:hidden flex items-center gap-4">
+        <div className="lg:hidden flex items-center gap-3 shrink-0">
           {/* Mobile Bell Button */}
           <div className="relative">
             <button
@@ -253,9 +253,8 @@ export default function Navbar() {
             )}
           </div>
 
-          <ThemeSwitch />
           {avatar}
-          <button onClick={() => setIsOpen(!isOpen)} className="text-slate-700 dark:text-slate-300 text-2xl">
+          <button onClick={() => setIsOpen(!isOpen)} aria-label="Menú" className="text-slate-700 dark:text-slate-300 text-2xl">
             {isOpen ? <span className="text-2xl"><FiX /></span> : <span className="text-2xl"><FiMenu /></span>}
           </button>
         </div>
@@ -298,6 +297,10 @@ export default function Navbar() {
           </div>
           
           <div className="flex flex-col gap-3 pt-4 border-t border-slate-100 dark:border-[#1a1a1a]">
+            <div className="flex items-center justify-between">
+              <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Tema</p>
+              <ThemeSwitch />
+            </div>
             <p className="text-xs text-slate-500 uppercase tracking-wider font-semibold">Moneda Principal</p>
             <div className="flex bg-slate-100 dark:bg-[#111] rounded-xl p-1 relative border border-slate-200 dark:border-[#222]">
               {(["ARS", "USD", "EUR"] as const).map((c) => (

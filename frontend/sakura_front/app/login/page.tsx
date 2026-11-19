@@ -119,7 +119,7 @@ export default function LoginPage() {
   const canRegister = !!invite && inviteValid !== false;
 
   return (
-    <div className="min-h-screen flex items-center justify-center px-4 py-12 bg-slate-50 dark:bg-[#0a0a0a]">
+    <div className="min-h-screen flex items-center justify-center px-4 py-12 pt-[calc(3rem+env(safe-area-inset-top))] bg-slate-50 dark:bg-[#0a0a0a]">
       <Script src="https://accounts.google.com/gsi/client" strategy="afterInteractive" onReady={() => setGoogleReady(true)} />
 
       <div className="w-full max-w-md bg-white dark:bg-[#111] rounded-[2.5rem] border border-slate-200 dark:border-[#222] shadow-2xl p-8 sm:p-10 flex flex-col gap-6">

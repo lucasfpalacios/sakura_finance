@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Viewport } from "next";
 import { Inter } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "./providers";
@@ -12,7 +12,24 @@ export const metadata: Metadata = {
   description: "Dashboard financiero inteligente",
   icons: {
     icon: "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🌸</text></svg>",
+    apple: "/icons/apple-touch-icon.png",
   },
+  // iPhone: al agregarla a la pantalla de inicio abre a pantalla completa, sin barra de Safari
+  appleWebApp: {
+    capable: true,
+    title: "Sakura",
+    statusBarStyle: "black-translucent",
+  },
+};
+
+export const viewport: Viewport = {
+  width: "device-width",
+  initialScale: 1,
+  viewportFit: "cover", // usa toda la pantalla (notch / Dynamic Island) con safe areas
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "#f8fafc" },
+    { media: "(prefers-color-scheme: dark)", color: "#0a0a0a" },
+  ],
 };
 
 export default function RootLayout({

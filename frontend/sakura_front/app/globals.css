@@ -13,4 +13,16 @@ html {
 
 body {
   transition: background-color 0.3s ease, color 0.3s ease;
+  /* Como app instalada en iPhone: respeta la barra de inicio y los bordes */
+  padding-bottom: env(safe-area-inset-bottom);
+  padding-left: env(safe-area-inset-left);
+  padding-right: env(safe-area-inset-right);
+  -webkit-tap-highlight-color: transparent;
+}
+
+/* iOS hace zoom al enfocar inputs con letra menor a 16px: en celular se fuerza 16px */
+@media (max-width: 1023px) {
+  input, select, textarea {
+    font-size: 16px !important;
+  }
 }

@@ -861,7 +861,19 @@ export default function Home() {
             </div>
 
             <div className="space-y-8 w-full max-w-full">
-              <div className="bg-white dark:bg-[#111] p-4 sm:p-6 rounded-3xl border border-slate-200 dark:border-[#222] shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none flex flex-col gap-5 w-full">
+              {/* Celular: botón flotante para ir directo a cargar un movimiento */}
+              <button
+                type="button"
+                aria-label="Cargar movimiento"
+                onClick={() => {
+                  document.getElementById("nuevo-movimiento")?.scrollIntoView({ behavior: "smooth", block: "start" });
+                  setTimeout(() => document.getElementById("monto-nuevo")?.focus(), 400);
+                }}
+                className="lg:hidden fixed right-5 bottom-[calc(1.25rem+env(safe-area-inset-bottom))] z-40 w-14 h-14 rounded-full bg-gradient-to-br from-pink-500 to-rose-500 dark:from-[#FFB7C5] dark:to-[#ffa0b3] text-white dark:text-black text-3xl font-light shadow-xl shadow-pink-500/30 flex items-center justify-center active:scale-95 transition-transform"
+              >
+                +
+              </button>
+              <div id="nuevo-movimiento" className="scroll-mt-24 bg-white dark:bg-[#111] p-4 sm:p-6 rounded-3xl border border-slate-200 dark:border-[#222] shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none flex flex-col gap-5 w-full">
                 <div className="flex bg-slate-100 dark:bg-[#1a1a1a] p-1 rounded-xl mb-4">
                   <button 
                     onClick={() => switchTab('expense')}
@@ -893,6 +905,8 @@ export default function Home() {
                         onChange={(e) => setAmount(e.target.value)}
                         className="w-full bg-slate-50 dark:bg-[#1a1a1a] border border-slate-200 dark:border-[#333] rounded-xl p-3 text-slate-900 dark:text-white focus:outline-none focus:border-pink-400 dark:focus:border-[#FFB7C5] focus:ring-1 focus:ring-pink-400 dark:focus:ring-[#FFB7C5] transition-all font-bold"
                         placeholder="Ej: 2500"
+                        id="monto-nuevo"
+                        inputMode="decimal"
                       />
                     </div>
                     <div>

@@ -296,6 +296,11 @@ export default function Home() {
 
   const totalGlobal = chartData.reduce((sum: number, item: any) => sum + item.value, 0);
 
+  // Ingresos del mes seleccionado (mismo criterio que totalGlobal para gastos)
+  const totalIncomeMonth = wallet?.subcategories?.filter((c: any) => c.type === "income")
+    .reduce((sum: number, cat: any) => sum + (cat.transactions?.reduce((s: number, t: any) => s + t.amount, 0) || 0), 0) || 0;
+  const balanceMonth = totalIncomeMonth - totalGlobal;
+
   // Area Chart Data Computation
   const getMonthlyData = () => {
     const monthsMap: Record<string, { income: number; expense: number; investments: number; debts: number; hormiga: number }> = {};
@@ -524,16 +529,29 @@ export default function Home() {
             </div>
           </div>
           
-          <div className="bg-white/50 dark:bg-white/5 backdrop-blur-xl px-8 py-5 rounded-3xl border border-slate-200/50 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(255,183,197,0.05)] flex items-center gap-5 transition-all hover:scale-[1.02] duration-300">
-            <div className="bg-pink-100 dark:bg-pink-500/20 p-3 rounded-2xl">
-              <span className="text-3xl block">💰</span>
-            </div>
-            <div>
-              <p className="text-sm font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">Total {activeTab === 'expense' ? 'Gastado' : 'Ingresado'}</p>
-              <p className="text-4xl font-extrabold text-transparent bg-clip-text bg-gradient-to-r from-slate-900 to-slate-700 dark:from-white dark:to-slate-300">
-                {formatCurrency(totalGlobal)}
-              </p>
-            </div>
+          {/* Totales del mes seleccionado */}
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 sm:gap-4 w-full lg:w-auto">
+            {[
+              { label: "Ingresos", value: totalIncomeMonth, emoji: "💵", iconBg: "bg-emerald-100 dark:bg-emerald-500/20", valueCls: "text-emerald-600 dark:text-emerald-400" },
+              { label: "Gastado", value: totalGlobal, emoji: "💰", iconBg: "bg-pink-100 dark:bg-pink-500/20", valueCls: "text-slate-900 dark:text-white" },
+              {
+                label: "Balance", value: balanceMonth, emoji: balanceMonth >= 0 ? "📈" : "📉",
+                iconBg: balanceMonth >= 0 ? "bg-sky-100 dark:bg-sky-500/20" : "bg-red-100 dark:bg-red-500/20",
+                valueCls: balanceMonth >= 0 ? "text-sky-600 dark:text-[#87CEEB]" : "text-red-500",
+              },
+            ].map(card => (
+              <div key={card.label} className="bg-white/50 dark:bg-white/5 backdrop-blur-xl px-5 py-4 rounded-3xl border border-slate-200/50 dark:border-white/10 shadow-[0_8px_30px_rgb(0,0,0,0.04)] dark:shadow-[0_8px_30px_rgb(255,183,197,0.05)] flex items-center gap-4 transition-all hover:scale-[1.02] duration-300">
+                <div className={`${card.iconBg} p-2.5 rounded-2xl shrink-0`}>
+                  <span className="text-2xl block">{card.emoji}</span>
+                </div>
+                <div className="min-w-0">
+                  <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
+                  <p className={`text-2xl font-extrabold whitespace-nowrap ${card.valueCls}`}>
+                    {card.label === "Balance" && card.value > 0 ? "+" : ""}{formatCurrency(card.value)}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
         </header>
 

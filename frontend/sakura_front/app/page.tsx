@@ -5,6 +5,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, AreaChart, Area, XAx
 import { useCurrency } from "./context/CurrencyContext";
 import { useNotifications } from "./context/NotificationContext";
 import { FiEdit2, FiTrash2, FiX } from "react-icons/fi";
+import { apiFetch } from "../src/lib/api";
 
 const getEmoji = (text: string) => {
   const lower = text.toLowerCase();
@@ -100,20 +101,20 @@ export default function Home() {
 
   const fetchData = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/report?month=${currentMonth}`);
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/report?month=${currentMonth}`);
       const data = await res.json();
       setWallet(data);
       
-      const globalRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/report`);
+      const globalRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/report`);
       setGlobalWallet(await globalRes.json());
       
-      const invRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/investments`);
+      const invRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/investments`);
       if (invRes.ok) {
         const invData = await invRes.json();
         setInvestments(invData.investments || []);
       }
       
-      const debtsRes = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/debts`);
+      const debtsRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/debts`);
       if (debtsRes.ok) {
         setDebts(await debtsRes.json());
       }
@@ -129,7 +130,7 @@ export default function Home() {
   const handleCreateCategory = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/category`, {
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/category`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ name: newCatName, type: newCatType }),
@@ -211,7 +212,7 @@ export default function Home() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/transaction`, {
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/transaction`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -242,7 +243,7 @@ export default function Home() {
   const confirmDelete = async () => {
     if (!transactionToDelete) return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/transaction/${transactionToDelete}`, { method: "DELETE" });
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/transaction/${transactionToDelete}`, { method: "DELETE" });
       if (res.ok) {
         setTransactionToDelete(null);
         await fetchData();
@@ -265,7 +266,7 @@ export default function Home() {
     if (!editingTransaction) return;
     
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/transaction/${editingTransaction.id}`, {
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/transaction/${editingTransaction.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({

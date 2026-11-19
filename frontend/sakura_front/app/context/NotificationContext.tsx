@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useEffect } from "react";
 import { useCurrency } from "./CurrencyContext";
+import { apiFetch } from "../../src/lib/api";
 
 export interface Notification {
   id: string;
@@ -86,7 +87,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
   // Automated checker engine
   const refreshNotifications = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/report`);
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/report`);
       if (!res.ok) return;
       const walletData = await res.json();
 

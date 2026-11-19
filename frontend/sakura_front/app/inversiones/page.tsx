@@ -4,6 +4,7 @@ import React, { useState, useEffect } from "react";
 import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, AreaChart, Area, XAxis, YAxis, CartesianGrid } from "recharts";
 import { useCurrency } from "../context/CurrencyContext";
 import { FiTrash2, FiRefreshCw, FiPlus, FiX, FiTag, FiType, FiHash, FiDollarSign, FiEdit2 } from "react-icons/fi";
+import { apiFetch } from "../../src/lib/api";
 
 const COLORS = [
   "#F472B6", "#38BDF8", "#FBBF24", "#34D399", "#A78BFA", "#FB7185", "#2DD4BF"
@@ -51,7 +52,7 @@ export default function Inversiones() {
   // Fetch investments from backend
   const fetchInvestments = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/investments`);
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/investments`);
       const data = await res.json();
       setInvestments(data.investments || []);
       updateLivePrices(data.investments || []);
@@ -141,7 +142,7 @@ export default function Inversiones() {
       : `${process.env.NEXT_PUBLIC_API_URL}/api/investments`;
 
     try {
-      await fetch(url, {
+      await apiFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -166,7 +167,7 @@ export default function Inversiones() {
 
   const confirmDelete = async (id: string) => {
     try {
-      await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/investments/${id}`, { method: "DELETE" });
+      await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/investments/${id}`, { method: "DELETE" });
       setInvestmentToDelete(null);
       fetchInvestments();
     } catch (error) {

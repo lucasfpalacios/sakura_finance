@@ -4,6 +4,7 @@ import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useCurrency } from "../context/CurrencyContext";
 import Link from "next/link";
 import { FiPlus, FiTrash2, FiEdit2, FiX, FiCalendar, FiCheck } from "react-icons/fi";
+import { apiFetch } from "../../src/lib/api";
 
 type Kind = "fixed" | "planned" | "goals";
 type Cur = "ARS" | "USD" | "EUR";
@@ -130,7 +131,7 @@ export default function PlanificacionPage() {
 
   const fetchPlan = async () => {
     try {
-      const [res, debtsRes] = await Promise.all([fetch(API), fetch(DEBTS_API)]);
+      const [res, debtsRes] = await Promise.all([apiFetch(API), apiFetch(DEBTS_API)]);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setPlan(await res.json());
       // Si falla deudas, la planificación igual se muestra
@@ -208,7 +209,7 @@ export default function PlanificacionPage() {
   const saveIncome = async () => {
     const value = parseFloat(incomeInput);
     if (isNaN(value) || value < 0) return;
-    const res = await fetch(`${API}/income`, {
+    const res = await apiFetch(`${API}/income`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ amount: value, currency: incomeCurrency }),
@@ -245,7 +246,7 @@ export default function PlanificacionPage() {
 
     setIsSubmitting(true);
     try {
-      const res = await fetch(editingItem ? `${API}/${formKind}/${editingItem.id}` : `${API}/${formKind}`, {
+      const res = await apiFetch(editingItem ? `${API}/${formKind}/${editingItem.id}` : `${API}/${formKind}`, {
         method: editingItem ? "PUT" : "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body),
@@ -266,7 +267,7 @@ export default function PlanificacionPage() {
       if (months) debt_months[debtId] = months; else delete debt_months[debtId];
       return { ...p, debt_months };
     });
-    const res = await fetch(`${API}/debts/${debtId}`, {
+    const res = await apiFetch(`${API}/debts/${debtId}`, {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ months }),
@@ -276,7 +277,7 @@ export default function PlanificacionPage() {
 
   const handleDelete = async (kind: Kind, item: PlanItem) => {
     if (!confirm(`¿Eliminar "${item.name}"?`)) return;
-    const res = await fetch(`${API}/${kind}/${item.id}`, { method: "DELETE" });
+    const res = await apiFetch(`${API}/${kind}/${item.id}`, { method: "DELETE" });
     if (res.ok) fetchPlan();
   };
 

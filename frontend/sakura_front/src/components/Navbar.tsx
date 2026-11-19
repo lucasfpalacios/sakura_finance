@@ -5,10 +5,12 @@ import { FiPieChart, FiTrendingUp, FiAlertTriangle, FiMenu, FiX, FiBell, FiCredi
 import { useCurrency } from "../../app/context/CurrencyContext";
 import { useNotifications } from "../../app/context/NotificationContext";
 import ThemeSwitch from "./ThemeSwitch";
+import { useAuth } from "../../app/context/AuthContext";
 import { useState, useRef, useEffect } from "react";
 
 export default function Navbar() {
   const pathname = usePathname();
+  const { user } = useAuth();
   const { currency, setCurrency } = useCurrency();
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
@@ -34,11 +36,29 @@ export default function Navbar() {
   const CreditCardIcon = FiCreditCard as any;
   const TargetIcon = FiTarget as any;
 
+  // Sin sesión (pantalla de login) no se muestra la navegación
+  if (!user) return null;
+
+  // Avatar que lleva al perfil
+  const avatar = (
+    <Link href="/perfil" onClick={() => setIsOpen(false)} title={`${user.name} · Perfil`}
+      className={`shrink-0 rounded-full transition-all ${pathname === "/perfil" ? "ring-2 ring-pink-400 dark:ring-[#FFB7C5]" : "hover:ring-2 hover:ring-pink-200 dark:hover:ring-[#FFB7C5]/40"}`}>
+      {user.picture ? (
+        // eslint-disable-next-line @next/next/no-img-element
+        <img src={user.picture} alt={user.name} referrerPolicy="no-referrer" className="w-9 h-9 rounded-full object-cover" />
+      ) : (
+        <span className="w-9 h-9 rounded-full bg-pink-100 dark:bg-[#FFB7C5]/10 text-pink-500 dark:text-[#FFB7C5] flex items-center justify-center text-sm font-extrabold">
+          {user.name.charAt(0).toUpperCase()}
+        </span>
+      )}
+    </Link>
+  );
+
   return (
-    <nav className="sticky top-0 z-50 w-full bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-xl border-b border-slate-200 dark:border-[#2a2a2a] px-6 lg:px-12 py-4">
+    <nav className="sticky top-0 z-50 w-full bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-xl border-b border-slate-200 dark:border-[#2a2a2a] px-4 sm:px-6 lg:px-8 py-3">
       <div className="max-w-[1440px] mx-auto flex items-center justify-between">
         {/* Logo */}
-        <Link href="/">
+        <Link href="/" className="shrink-0">
           <div className="flex items-center gap-2 cursor-pointer">
             <span className="text-2xl">🌸</span>
             <h1 className="text-xl lg:text-2xl font-bold text-slate-950 dark:text-white tracking-tight">
@@ -47,42 +67,28 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Desktop Links */}
-        <div className="hidden lg:flex items-center gap-2 lg:gap-6 ml-10 flex-1">
-          <Link href="/">
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl transition-all duration-300 cursor-pointer ${pathname === "/" ? "bg-pink-100 dark:bg-[#FFB7C5]/10 text-pink-600 dark:text-[#FFB7C5] font-semibold" : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"}`}>
-              <PieIcon className="text-lg" />
-              <span>Dashboard</span>
-            </div>
-          </Link>
-          <Link href="/inversiones">
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl transition-all duration-300 cursor-pointer ${pathname === "/inversiones" ? "bg-pink-100 dark:bg-[#FFB7C5]/10 text-pink-600 dark:text-[#FFB7C5] font-semibold" : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"}`}>
-              <TrendingIcon className="text-lg" />
-              <span>Inversiones</span>
-            </div>
-          </Link>
-          <Link href="/alertas">
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl transition-all duration-300 cursor-pointer ${pathname === "/alertas" ? "bg-pink-100 dark:bg-[#FFB7C5]/10 text-pink-600 dark:text-[#FFB7C5] font-semibold" : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"}`}>
-              <AlertIcon className="text-lg" />
-              <span>Gastos Hormiga</span>
-            </div>
-          </Link>
-          <Link href="/deudas">
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl transition-all duration-300 cursor-pointer ${pathname === "/deudas" ? "bg-pink-100 dark:bg-[#FFB7C5]/10 text-pink-600 dark:text-[#FFB7C5] font-semibold" : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"}`}>
-              <CreditCardIcon className="text-lg" />
-              <span>Deudas</span>
-            </div>
-          </Link>
-          <Link href="/planificacion">
-            <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl transition-all duration-300 cursor-pointer ${pathname === "/planificacion" ? "bg-pink-100 dark:bg-[#FFB7C5]/10 text-pink-600 dark:text-[#FFB7C5] font-semibold" : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"}`}>
-              <TargetIcon className="text-lg" />
-              <span>Planificación</span>
-            </div>
-          </Link>
+        {/* Desktop Links: solo íconos entre lg y xl; ícono + texto desde xl. Nunca se parten en dos líneas */}
+        <div className="hidden lg:flex items-center gap-1 ml-6 xl:ml-8 flex-1 min-w-0">
+          {[
+            { href: "/", label: "Dashboard", Icon: PieIcon },
+            { href: "/inversiones", label: "Inversiones", Icon: TrendingIcon },
+            { href: "/alertas", label: "Gastos Hormiga", Icon: AlertIcon },
+            { href: "/deudas", label: "Deudas", Icon: CreditCardIcon },
+            { href: "/planificacion", label: "Planificación", Icon: TargetIcon },
+          ].map(({ href, label, Icon }) => {
+            const active = pathname === href;
+            return (
+              <Link key={href} href={href} title={label}
+                className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm whitespace-nowrap transition-all duration-300 ${active ? "bg-pink-100 dark:bg-[#FFB7C5]/10 text-pink-600 dark:text-[#FFB7C5] font-semibold" : "text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-[#1a1a1a]"}`}>
+                <Icon className="text-lg shrink-0" />
+                <span className="hidden xl:inline">{label}</span>
+              </Link>
+            );
+          })}
         </div>
 
         {/* Desktop Actions */}
-        <div className="hidden lg:flex items-center gap-6">
+        <div className="hidden lg:flex items-center gap-3 shrink-0">
           {/* Notifications Bell */}
           <div className="relative" ref={popoverRef}>
             <button
@@ -175,6 +181,7 @@ export default function Navbar() {
             ))}
           </div>
           <ThemeSwitch />
+          {avatar}
         </div>
 
         {/* Mobile Menu Button */}
@@ -247,6 +254,7 @@ export default function Navbar() {
           </div>
 
           <ThemeSwitch />
+          {avatar}
           <button onClick={() => setIsOpen(!isOpen)} className="text-slate-700 dark:text-slate-300 text-2xl">
             {isOpen ? <span className="text-2xl"><FiX /></span> : <span className="text-2xl"><FiMenu /></span>}
           </button>

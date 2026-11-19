@@ -15,6 +15,7 @@ import {
   FiPercent, 
   FiList 
 } from "react-icons/fi";
+import { apiFetch } from "../../src/lib/api";
 
 interface Transaction {
   id: string;
@@ -90,7 +91,7 @@ export default function AlertasPage() {
     // Fetch transactions from backend
     const fetchWalletData = async () => {
       try {
-        const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/report`);
+        const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/report`);
         const data = await res.json();
         setWallet(data);
       } catch (error) {

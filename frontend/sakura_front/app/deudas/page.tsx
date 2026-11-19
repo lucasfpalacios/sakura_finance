@@ -13,6 +13,7 @@ import {
   FiCalendar,
   FiX
 } from "react-icons/fi";
+import { apiFetch } from "../../src/lib/api";
 
 interface Debt {
   id: string;
@@ -78,7 +79,7 @@ export default function DeudasPage() {
 
   const fetchDebts = async () => {
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/debts`);
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/debts`);
       if (res.ok) {
         setDebts(await res.json());
       }
@@ -134,7 +135,7 @@ export default function DeudasPage() {
 
       const method = editingDebt ? "PUT" : "POST";
 
-      const res = await fetch(url, {
+      const res = await apiFetch(url, {
         method,
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(body)
@@ -156,7 +157,7 @@ export default function DeudasPage() {
   const handleDelete = async (id: string) => {
     if (!confirm("¿Estás seguro de que deseas eliminar esta deuda?")) return;
     try {
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/debts/${id}`, {
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/debts/${id}`, {
         method: "DELETE"
       });
       if (res.ok) {
@@ -170,7 +171,7 @@ export default function DeudasPage() {
   const handleToggleStatus = async (debt: Debt) => {
     try {
       const nextStatus = debt.status === "pending" ? "paid" : "pending";
-      const res = await fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/debts/${debt.id}`, {
+      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/debts/${debt.id}`, {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ status: nextStatus })

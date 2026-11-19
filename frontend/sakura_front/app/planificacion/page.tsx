@@ -15,6 +15,7 @@ interface PlanItem {
   currency: Cur;
   date: string | null;
   saved: number;
+  installments?: number | null; // cuotas (solo gastos proyectados)
 }
 
 interface Plan {
@@ -57,7 +58,7 @@ const KIND_CONFIG: Record<Kind, {
   },
   planned: {
     title: "Gastos proyectados", singular: "Gasto proyectado", emoji: "🗓️",
-    help: "Gastos puntuales a futuro. Se calcula cuánto reservar por mes hasta la fecha.",
+    help: "Gastos puntuales a futuro. Se calcula cuánto reservar por mes hasta la fecha, o la cuota si es en cuotas.",
     namePlaceholder: "Ej: Viaje, Notebook nueva, Regalo", amountLabel: "Monto",
     dateLabel: "Fecha estimada", dateRequired: true,
     bar: "bg-amber-400",
@@ -117,6 +118,7 @@ export default function PlanificacionPage() {
   const [itemCurrency, setItemCurrency] = useState<Cur>("ARS");
   const [date, setDate] = useState("");
   const [saved, setSaved] = useState("");
+  const [installments, setInstallments] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const PlusIcon = FiPlus;
@@ -153,10 +155,19 @@ export default function PlanificacionPage() {
     const fixed = plan.fixed.reduce((s, i) => s + toARS(i.amount, i.currency), 0);
 
     const planned = plan.planned.map(i => {
+      const n = i.installments && i.installments > 1 ? i.installments : 0;
+      if (n) {
+        // En cuotas: la cuota corre desde el mes de compra durante n meses
+        const start = i.date ? monthsUntil(i.date) : 0; // meses hasta la 1ª cuota (negativo si ya empezó)
+        const current = 1 - start;                      // nº de cuota de este mes
+        const finished = current > n;
+        const monthly = finished ? 0 : toARS(i.amount, i.currency) / n;
+        return { ...i, past: finished, months: n, monthly, n, start, current };
+      }
       const past = !!i.date && isPast(i.date);
       const months = i.date ? Math.max(1, monthsUntil(i.date)) : 1;
       const monthly = past ? 0 : toARS(i.amount, i.currency) / months;
-      return { ...i, past, months, monthly };
+      return { ...i, past, months, monthly, n: 0, start: 0, current: 0 };
     });
     const plannedMonthly = planned.reduce((s, i) => s + i.monthly, 0);
 
@@ -213,6 +224,7 @@ export default function PlanificacionPage() {
     setItemCurrency(item?.currency ?? currency);
     setDate(item?.date ?? "");
     setSaved(item && item.saved ? String(item.saved) : "");
+    setInstallments(item?.installments ? String(item.installments) : "");
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -227,6 +239,8 @@ export default function PlanificacionPage() {
       currency: itemCurrency,
       date: formKind === "fixed" ? null : date || null,
       saved: formKind === "goals" ? parseFloat(saved) || 0 : 0,
+      // null borra las cuotas al editar
+      installments: formKind === "planned" && parseInt(installments) > 1 ? parseInt(installments) : null,
     };
 
     setIsSubmitting(true);
@@ -479,9 +493,15 @@ export default function PlanificacionPage() {
                 </div>
                 <div className="flex justify-between items-center gap-2">
                   <span className={`text-xs font-semibold ${item.past ? "text-slate-400" : "text-amber-600 dark:text-amber-400"}`}>
-                    {item.past
-                      ? "Fecha pasada"
-                      : `${formatCurrency(item.monthly)}/mes · ${item.months} ${item.months === 1 ? "mes" : "meses"}`}
+                    {item.n
+                      ? item.past
+                        ? `${item.n} cuotas · pagado`
+                        : item.start > 0
+                          ? `${item.n} cuotas de ${formatCurrency(item.monthly)} · arranca en ${item.start} ${item.start === 1 ? "mes" : "meses"}`
+                          : `Cuota ${item.current}/${item.n} · ${formatCurrency(item.monthly)}/mes`
+                      : item.past
+                        ? "Fecha pasada"
+                        : `${formatCurrency(item.monthly)}/mes · ${item.months} ${item.months === 1 ? "mes" : "meses"}`}
                   </span>
                   {itemActions("planned", item)}
                 </div>
@@ -667,9 +687,24 @@ export default function PlanificacionPage() {
                 </div>
               )}
 
+              {formKind === "planned" && (
+                <div className="flex flex-col gap-2">
+                  <label className={label}>Cuotas (opcional)</label>
+                  <input type="number" step="1" min="1" max="120" value={installments}
+                    onChange={e => setInstallments(e.target.value)} placeholder="Pago único" className={`${input} text-right`} />
+                  <span className="text-[11px] text-slate-400">
+                    {parseInt(installments) > 1 && parseFloat(amount) > 0
+                      ? `${parseInt(installments)} cuotas de ${formatOriginal(parseFloat(amount) / parseInt(installments), itemCurrency)} desde el mes de compra.`
+                      : "Vacío = pago único: se reserva por mes hasta la fecha."}
+                  </span>
+                </div>
+              )}
+
               {KIND_CONFIG[formKind].dateLabel && (
                 <div className="flex flex-col gap-2">
-                  <label className={label}>{KIND_CONFIG[formKind].dateLabel}</label>
+                  <label className={label}>
+                    {formKind === "planned" && parseInt(installments) > 1 ? "Fecha de compra / 1ª cuota" : KIND_CONFIG[formKind].dateLabel}
+                  </label>
                   <input type="date" required={KIND_CONFIG[formKind].dateRequired} value={date}
                     onChange={e => setDate(e.target.value)} className={`${input} cursor-pointer`} />
                 </div>

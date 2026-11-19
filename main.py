@@ -110,6 +110,7 @@ class PlanItemSchema(BaseModel):
     currency: str = "ARS"
     date: Optional[str] = None
     saved: float = 0.0
+    installments: Optional[int] = Field(default=None, ge=1, le=120)
 
 
 class DebtMonthsSchema(BaseModel):
@@ -122,6 +123,7 @@ class PlanItemUpdateSchema(BaseModel):
     currency: Optional[str] = None
     date: Optional[str] = None
     saved: Optional[float] = None
+    installments: Optional[int] = Field(default=None, ge=1, le=120)
 
 
 def load_wallet() -> Category:
@@ -316,7 +318,7 @@ def update_debt_months(debt_id: str, data: DebtMonthsSchema):
 @app.post("/api/planning/{kind}")
 def add_plan_item(kind: PlanKind, data: PlanItemSchema):
     plan = load_plan()
-    item = PlanItem(data.name, data.amount, data.currency, data.date, data.saved)
+    item = PlanItem(data.name, data.amount, data.currency, data.date, data.saved, installments=data.installments)
     plan.add_item(kind, item)
     save_plan(plan)
     return item.to_dict()

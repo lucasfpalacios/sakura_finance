@@ -256,13 +256,15 @@ class PlanItem:
     - date: fecha del gasto puntual o fecha límite de la meta (no aplica a fijos).
     - saved: cuánto llevas ahorrado (solo metas).
     """
-    def __init__(self, name: str, amount: float, currency: str = "ARS", date: Optional[str] = None, saved: float = 0.0, id: Optional[str] = None) -> None:
+    # installments: cantidad de cuotas (solo gastos proyectados; None = pago único)
+    def __init__(self, name: str, amount: float, currency: str = "ARS", date: Optional[str] = None, saved: float = 0.0, id: Optional[str] = None, installments: Optional[int] = None) -> None:
         self.id = id if id else uuid.uuid4().hex
         self.name = name
         self.amount = amount
         self.currency = currency
         self.date = date
         self.saved = saved
+        self.installments = installments
 
     def to_dict(self) -> dict:
         return {
@@ -272,13 +274,14 @@ class PlanItem:
             "currency": self.currency,
             "date": self.date,
             "saved": self.saved,
+            "installments": self.installments,
         }
 
     @classmethod
     def from_dict(cls, data: dict) -> 'PlanItem':
         return cls(
             data["name"], data["amount"], data.get("currency", "ARS"),
-            data.get("date"), data.get("saved", 0.0), data.get("id")
+            data.get("date"), data.get("saved", 0.0), data.get("id"), data.get("installments")
         )
 
 
@@ -305,7 +308,7 @@ class BudgetPlan:
     def edit_item(self, kind: str, item_id: str, new_data: dict) -> bool:
         for item in self.items[kind]:
             if item.id == item_id:
-                for field in ("name", "amount", "currency", "date", "saved"):
+                for field in ("name", "amount", "currency", "date", "saved", "installments"):
                     if field in new_data:
                         setattr(item, field, new_data[field])
                 return True

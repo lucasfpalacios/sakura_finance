@@ -249,6 +249,17 @@ export default function PlanificacionPage() {
     if (!res.ok) fetchPlan();
   };
 
+  // Corrige la moneda en la deuda original (sección Deudas)
+  const setDebtCurrency = async (debtId: string, cur: Cur) => {
+    setDebts(ds => ds.map(d => (d.id === debtId ? { ...d, currency: cur } : d)));
+    const res = await fetch(`${DEBTS_API}/${debtId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ currency: cur }),
+    });
+    if (!res.ok) fetchPlan();
+  };
+
   const handleDelete = async (kind: Kind, item: PlanItem) => {
     if (!confirm(`¿Eliminar "${item.name}"?`)) return;
     const res = await fetch(`${API}/${kind}/${item.id}`, { method: "DELETE" });
@@ -563,6 +574,14 @@ export default function PlanificacionPage() {
                           {currency !== d.currency && (
                             <p className="text-[10px] font-bold text-slate-400 uppercase">≈ {formatCurrency(toARS(d.amount, d.currency))}</p>
                           )}
+                          <select
+                            value={d.currency}
+                            onChange={e => setDebtCurrency(d.id, e.target.value as Cur)}
+                            title="Moneda de la deuda"
+                            className="mt-1 px-2 py-1 bg-white dark:bg-[#111] border border-slate-200 dark:border-[#222] rounded-lg text-[10px] font-bold outline-none focus:border-pink-400 dark:focus:border-[#FFB7C5] cursor-pointer"
+                          >
+                            {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
+                          </select>
                         </div>
                       </div>
                       <div className="flex justify-between items-center gap-3">

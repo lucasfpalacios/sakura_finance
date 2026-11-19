@@ -91,6 +91,8 @@ export default function PlanificacionPage() {
   const { currency, rates, formatCurrency } = useCurrency();
   const [plan, setPlan] = useState<Plan | null>(null);
   const [debts, setDebts] = useState<Debt[]>([]);
+  // Moneda en la que se VISUALIZA cada deuda (solo vista: no modifica la deuda cargada)
+  const [debtView, setDebtView] = useState<Record<string, Cur>>({});
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -165,8 +167,9 @@ export default function PlanificacionPage() {
       const monthly = months > 0 ? toARS(d.amount, d.currency) / months : 0;
       const dueMonths = d.due_date ? monthsUntil(d.due_date) : null;
       // Avisar si el plazo elegido termina después del vencimiento
-      const lateVsDue = months > 0 && dueMonths !== null && months > Math.max(1, dueMonths);
-      return { ...d, months, monthly, dueMonths, lateVsDue };
+      const overdue = !!d.due_date && isPast(d.due_date);
+      const lateVsDue = !overdue && months > 0 && dueMonths !== null && months > Math.max(1, dueMonths);
+      return { ...d, months, monthly, dueMonths, overdue, lateVsDue };
     });
     const debtsMonthly = debtItems.reduce((s, d) => s + d.monthly, 0);
     const debtsTotal = debtItems.reduce((s, d) => s + toARS(d.amount, d.currency), 0);
@@ -245,17 +248,6 @@ export default function PlanificacionPage() {
       method: "PUT",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ months }),
-    });
-    if (!res.ok) fetchPlan();
-  };
-
-  // Corrige la moneda en la deuda original (sección Deudas)
-  const setDebtCurrency = async (debtId: string, cur: Cur) => {
-    setDebts(ds => ds.map(d => (d.id === debtId ? { ...d, currency: cur } : d)));
-    const res = await fetch(`${DEBTS_API}/${debtId}`, {
-      method: "PUT",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ currency: cur }),
     });
     if (!res.ok) fetchPlan();
   };
@@ -557,6 +549,8 @@ export default function PlanificacionPage() {
                   const options = MONTH_OPTIONS.includes(d.months) || d.months === 0
                     ? MONTH_OPTIONS
                     : [...MONTH_OPTIONS, d.months].sort((a, b) => a - b);
+                  const viewCur = debtView[d.id] ?? d.currency;
+                  const viewAmount = toARS(d.amount, d.currency) / (rates[viewCur] || 1);
                   return (
                     <div key={d.id} className={itemBox}>
                       <div className="flex justify-between items-start gap-3">
@@ -565,19 +559,19 @@ export default function PlanificacionPage() {
                           {d.description && <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{d.description}</p>}
                           {d.due_date && (
                             <p className="flex items-center gap-1 text-[10px] font-bold uppercase text-slate-400 mt-1">
-                              <CalendarIcon size={10} /> Vence {d.due_date}
+                              <CalendarIcon size={10} /> {d.overdue ? "Venció" : "Vence"} {d.due_date}
                             </p>
                           )}
                         </div>
                         <div className="text-right shrink-0">
-                          <p className="text-sm font-extrabold text-slate-950 dark:text-white">{formatOriginal(d.amount, d.currency)}</p>
-                          {currency !== d.currency && (
-                            <p className="text-[10px] font-bold text-slate-400 uppercase">≈ {formatCurrency(toARS(d.amount, d.currency))}</p>
+                          <p className="text-sm font-extrabold text-slate-950 dark:text-white">{formatOriginal(viewAmount, viewCur)}</p>
+                          {viewCur !== d.currency && (
+                            <p className="text-[10px] font-bold text-slate-400 uppercase">Cargada: {formatOriginal(d.amount, d.currency)}</p>
                           )}
                           <select
-                            value={d.currency}
-                            onChange={e => setDebtCurrency(d.id, e.target.value as Cur)}
-                            title="Moneda de la deuda"
+                            value={viewCur}
+                            onChange={e => setDebtView(v => ({ ...v, [d.id]: e.target.value as Cur }))}
+                            title="Ver en otra moneda (no modifica la deuda)"
                             className="mt-1 px-2 py-1 bg-white dark:bg-[#111] border border-slate-200 dark:border-[#222] rounded-lg text-[10px] font-bold outline-none focus:border-pink-400 dark:focus:border-[#FFB7C5] cursor-pointer"
                           >
                             {CURRENCIES.map(c => <option key={c} value={c}>{c}</option>)}
@@ -596,9 +590,12 @@ export default function PlanificacionPage() {
                           ))}
                         </select>
                         <span className="text-xs font-semibold text-sky-600 dark:text-sky-400 text-right">
-                          {d.months > 0 ? `${formatCurrency(d.monthly)}/mes` : <span className="text-slate-400">Sin plazo, no suma</span>}
+                          {d.months > 0 ? `${formatOriginal(viewAmount / d.months, viewCur)}/mes` : <span className="text-slate-400">Sin plazo, no suma</span>}
                         </span>
                       </div>
+                      {d.overdue && (
+                        <p className="text-[11px] font-semibold text-red-500">⚠️ Esta deuda ya está vencida.</p>
+                      )}
                       {d.lateVsDue && (
                         <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
                           ⚠️ Con este plazo terminarías después del vencimiento ({Math.max(0, d.dueMonths ?? 0)} {d.dueMonths === 1 ? "mes" : "meses"}).

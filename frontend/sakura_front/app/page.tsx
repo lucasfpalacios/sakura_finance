@@ -56,6 +56,13 @@ export default function Home() {
 
   // Tabs and Global Data
   const [activeTab, setActiveTab] = useState<"expense" | "income">("expense");
+
+  // Al cambiar de pestaña, limpiar la categoría para que el usuario elija una del tipo correcto
+  // (si no, un ingreso podía guardarse en una categoría de gasto)
+  const switchTab = (tab: "expense" | "income") => {
+    setActiveTab(tab);
+    setCategoryName("");
+  };
   const [globalWallet, setGlobalWallet] = useState<any>(null);
 
   const [isCategoryModalOpen, setIsCategoryModalOpen] = useState(false);
@@ -113,8 +120,9 @@ export default function Home() {
       
       refreshNotifications();
 
-      if (!categoryName && data.subcategories?.length > 0) {
-        setCategoryName(data.subcategories[0].name);
+      if (!categoryName) {
+        const first = data.subcategories?.find((c: any) => c.type === activeTab);
+        if (first) setCategoryName(first.name);
       }
     } catch (err) {
       console.error("Error al cargar datos:", err);
@@ -172,7 +180,10 @@ export default function Home() {
   useEffect(() => {
     if (!description) return;
     const lowerDesc = description.toLowerCase();
-    const existingCategories = wallet?.subcategories?.map((c: any) => c.name) || [];
+    // Solo categorías del tipo de la pestaña activa (un ingreso no debe caer en una categoría de gasto)
+    const existingCategories = wallet?.subcategories
+      ?.filter((c: any) => c.type === activeTab)
+      .map((c: any) => c.name) || [];
     
     const keywordMap: Record<string, string[]> = {
       'Comida': ['mcdonalds', 'pizza', 'burger', 'comida', 'cena', 'almuerzo', 'super', 'mc', 'arroz', 'carne', 'kiosco'],
@@ -197,7 +208,7 @@ export default function Home() {
          setCategoryName(exists);
       }
     }
-  }, [description, wallet]);
+  }, [description, wallet, activeTab]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -837,13 +848,13 @@ export default function Home() {
               <div className="bg-white dark:bg-[#111] p-4 sm:p-6 rounded-3xl border border-slate-200 dark:border-[#222] shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none flex flex-col gap-5 w-full">
                 <div className="flex bg-slate-100 dark:bg-[#1a1a1a] p-1 rounded-xl mb-4">
                   <button 
-                    onClick={() => setActiveTab('expense')}
+                    onClick={() => switchTab('expense')}
                     className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'expense' ? 'bg-white dark:bg-[#222] text-pink-500 shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     🔴 Gastos
                   </button>
                   <button 
-                    onClick={() => setActiveTab('income')}
+                    onClick={() => switchTab('income')}
                     className={`flex-1 py-2 text-sm font-bold rounded-lg transition-all ${activeTab === 'income' ? 'bg-white dark:bg-[#222] text-[#87CEEB] shadow-sm' : 'text-slate-500 hover:text-slate-700'}`}
                   >
                     🟢 Ingresos
@@ -901,7 +912,7 @@ export default function Home() {
                           className={`w-full bg-slate-50 dark:bg-[#1a1a1a] border ${isCatDropdownOpen ? 'border-pink-400 dark:border-[#FFB7C5] ring-1 ring-pink-400 dark:ring-[#FFB7C5]' : 'border-slate-200 dark:border-[#333]'} rounded-xl p-3 text-slate-900 dark:text-white transition-all font-medium cursor-pointer flex justify-between items-center`}
                         >
                           <span className={categoryName ? 'text-slate-900 dark:text-white' : 'text-slate-400'}>
-                            {categoryName || "Selecciona una categoría..."}
+                            {categoryName || "Selecciona la categoría"}
                           </span>
                           <svg className={`fill-current h-4 w-4 text-slate-500 transition-transform duration-300 ${isCatDropdownOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
                         </div>

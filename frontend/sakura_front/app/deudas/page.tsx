@@ -7,9 +7,7 @@ import {
   FiTrash2, 
   FiEdit2, 
   FiCheckCircle, 
-  FiAlertCircle, 
   FiClock, 
-  FiDollarSign,
   FiUser,
   FiFileText,
   FiCalendar,
@@ -55,7 +53,6 @@ export default function DeudasPage() {
   const TrashIcon = FiTrash2 as any;
   const EditIcon = FiEdit2 as any;
   const CheckIcon = FiCheckCircle as any;
-  const AlertIcon = FiAlertCircle as any;
   const ClockIcon = FiClock as any;
   const UserIcon = FiUser as any;
   const DocIcon = FiFileText as any;

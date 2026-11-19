@@ -119,11 +119,6 @@ export default function Home() {
       }
       
       refreshNotifications();
-
-      if (!categoryName) {
-        const first = data.subcategories?.find((c: any) => c.type === activeTab);
-        if (first) setCategoryName(first.name);
-      }
     } catch (err) {
       console.error("Error al cargar datos:", err);
     } finally {
@@ -230,6 +225,7 @@ export default function Home() {
       if (res.ok) {
         setAmount("");
         setDescription("");
+        setCategoryName("");
         await fetchData();
         setSuccessMessage(`¡${activeTab === 'expense' ? 'Gasto' : 'Ingreso'} creado con éxito!`);
       } else {
@@ -810,11 +806,12 @@ export default function Home() {
             <div className="lg:col-span-2 space-y-8">
               <h2 className="text-2xl font-semibold text-slate-800 dark:text-white">Transacciones Recientes</h2>
               
-              {wallet?.subcategories?.length === 0 && (
-                 <p className="text-slate-500">No hay categorías creadas aún.</p>
+              {/* Solo categorías con movimientos en el mes seleccionado */}
+              {!wallet?.subcategories?.some((c: any) => c.transactions?.length > 0) && (
+                 <p className="text-slate-500 dark:text-gray-500 italic">No hay movimientos cargados en este mes.</p>
               )}
 
-              {wallet?.subcategories?.map((cat: any) => {
+              {wallet?.subcategories?.filter((cat: any) => cat.transactions?.length > 0).map((cat: any) => {
                 const catTotal = cat.transactions?.reduce((sum: number, t: any) => sum + t.amount, 0) || 0;
                 
                 return (
@@ -930,7 +927,7 @@ export default function Home() {
                           className={`w-full bg-slate-50 dark:bg-[#1a1a1a] border ${isCatDropdownOpen ? 'border-pink-400 dark:border-[#FFB7C5] ring-1 ring-pink-400 dark:ring-[#FFB7C5]' : 'border-slate-200 dark:border-[#333]'} rounded-xl p-3 text-slate-900 dark:text-white transition-all font-medium cursor-pointer flex justify-between items-center`}
                         >
                           <span className={categoryName ? 'text-slate-900 dark:text-white' : 'text-slate-400'}>
-                            {categoryName || "Selecciona la categoría"}
+                            {categoryName || "Seleccionar categoría"}
                           </span>
                           <svg className={`fill-current h-4 w-4 text-slate-500 transition-transform duration-300 ${isCatDropdownOpen ? 'rotate-180' : ''}`} xmlns="http://www.w3.org/2000/svg" viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z"/></svg>
                         </div>

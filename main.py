@@ -7,7 +7,7 @@ from datetime import datetime
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
 from dotenv import load_dotenv
-from models import Category, Transaction, Investment, Portfolio, Debt
+from models import Category, Transaction, Investment, Portfolio, Debt, PlanItem, BudgetPlan
 
 import os
 env_path = os.path.join(os.path.dirname(__file__), "backend", ".env")
@@ -23,6 +23,7 @@ MONGO_DB = os.getenv("MONGO_DB", "finanzas_db")
 
 WALLET_DOC_ID = "main_wallet"
 PORTFOLIO_DOC_ID = "main_portfolio"
+PLAN_DOC_ID = "main_plan"
 
 _db = None
 
@@ -91,6 +92,30 @@ class DebtUpdateSchema(BaseModel):
     description: Optional[str] = None
     due_date: Optional[str] = None
     status: Optional[Literal["pending", "paid"]] = None
+
+
+PlanKind = Literal["fixed", "planned", "goals"]
+
+
+class IncomeSchema(BaseModel):
+    amount: float
+    currency: str = "ARS"
+
+
+class PlanItemSchema(BaseModel):
+    name: str
+    amount: float
+    currency: str = "ARS"
+    date: Optional[str] = None
+    saved: float = 0.0
+
+
+class PlanItemUpdateSchema(BaseModel):
+    name: Optional[str] = None
+    amount: Optional[float] = None
+    currency: Optional[str] = None
+    date: Optional[str] = None
+    saved: Optional[float] = None
 
 
 def load_wallet() -> Category:
@@ -240,3 +265,58 @@ def delete_debt(debt_id: str):
     if result.deleted_count == 0:
         raise HTTPException(status_code=404, detail="Deuda no encontrada")
     return {"message": "Deuda eliminada"}
+
+
+def load_plan() -> BudgetPlan:
+    data = get_db()["planning"].find_one({"_id": PLAN_DOC_ID})
+    if data:
+        return BudgetPlan.from_dict(data)
+    return BudgetPlan()
+
+
+def save_plan(plan: BudgetPlan) -> None:
+    data = plan.to_dict()
+    data["_id"] = PLAN_DOC_ID
+    get_db()["planning"].replace_one({"_id": PLAN_DOC_ID}, data, upsert=True)
+
+
+@app.get("/api/planning")
+def get_planning():
+    return load_plan().to_dict()
+
+
+@app.put("/api/planning/income")
+def update_income(data: IncomeSchema):
+    plan = load_plan()
+    plan.monthly_income = data.amount
+    plan.income_currency = data.currency
+    save_plan(plan)
+    return {"message": "Ingreso actualizado"}
+
+
+@app.post("/api/planning/{kind}")
+def add_plan_item(kind: PlanKind, data: PlanItemSchema):
+    plan = load_plan()
+    item = PlanItem(data.name, data.amount, data.currency, data.date, data.saved)
+    plan.add_item(kind, item)
+    save_plan(plan)
+    return item.to_dict()
+
+
+@app.put("/api/planning/{kind}/{item_id}")
+def update_plan_item(kind: PlanKind, item_id: str, data: PlanItemUpdateSchema):
+    plan = load_plan()
+    # exclude_unset: permite enviar date=null para borrar una fecha
+    if not plan.edit_item(kind, item_id, data.dict(exclude_unset=True)):
+        raise HTTPException(status_code=404, detail="Ítem no encontrado")
+    save_plan(plan)
+    return {"message": "Ítem actualizado"}
+
+
+@app.delete("/api/planning/{kind}/{item_id}")
+def delete_plan_item(kind: PlanKind, item_id: str):
+    plan = load_plan()
+    if not plan.delete_item(kind, item_id):
+        raise HTTPException(status_code=404, detail="Ítem no encontrado")
+    save_plan(plan)
+    return {"message": "Ítem eliminado"}

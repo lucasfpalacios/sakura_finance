@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FiPieChart, FiTrendingUp, FiAlertTriangle, FiMenu, FiX, FiBell, FiCreditCard } from "react-icons/fi";
+import { FiPieChart, FiTrendingUp, FiAlertTriangle, FiMenu, FiX, FiBell, FiCreditCard, FiTarget } from "react-icons/fi";
 import { useCurrency } from "../../app/context/CurrencyContext";
 import { useNotifications } from "../../app/context/NotificationContext";
 import ThemeSwitch from "./ThemeSwitch";
@@ -32,6 +32,7 @@ export default function Navbar() {
   const AlertIcon = FiAlertTriangle as any;
   const BellIcon = FiBell as any;
   const CreditCardIcon = FiCreditCard as any;
+  const TargetIcon = FiTarget as any;
 
   return (
     <nav className="sticky top-0 z-50 w-full bg-white/80 dark:bg-[#0a0a0a]/80 backdrop-blur-xl border-b border-slate-200 dark:border-[#2a2a2a] px-6 lg:px-12 py-4">
@@ -70,6 +71,12 @@ export default function Navbar() {
             <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl transition-all duration-300 cursor-pointer ${pathname === "/deudas" ? "bg-pink-100 dark:bg-[#FFB7C5]/10 text-pink-600 dark:text-[#FFB7C5] font-semibold" : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"}`}>
               <CreditCardIcon className="text-lg" />
               <span>Deudas</span>
+            </div>
+          </Link>
+          <Link href="/planificacion">
+            <div className={`flex items-center gap-2 px-4 py-2 rounded-2xl transition-all duration-300 cursor-pointer ${pathname === "/planificacion" ? "bg-pink-100 dark:bg-[#FFB7C5]/10 text-pink-600 dark:text-[#FFB7C5] font-semibold" : "text-slate-500 hover:text-slate-800 dark:hover:text-slate-200"}`}>
+              <TargetIcon className="text-lg" />
+              <span>Planificación</span>
             </div>
           </Link>
         </div>
@@ -272,6 +279,12 @@ export default function Navbar() {
               <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 ${pathname === "/deudas" ? "bg-pink-100 dark:bg-[#FFB7C5]/10 text-pink-600 dark:text-[#FFB7C5] font-semibold" : "text-slate-500"}`}>
                 <CreditCardIcon className="text-xl" />
                 <span>Deudas</span>
+              </div>
+            </Link>
+            <Link href="/planificacion" onClick={() => setIsOpen(false)}>
+              <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 ${pathname === "/planificacion" ? "bg-pink-100 dark:bg-[#FFB7C5]/10 text-pink-600 dark:text-[#FFB7C5] font-semibold" : "text-slate-500"}`}>
+                <TargetIcon className="text-xl" />
+                <span>Planificación</span>
               </div>
             </Link>
           </div>

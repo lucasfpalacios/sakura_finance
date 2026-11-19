@@ -244,3 +244,81 @@ class Portfolio:
         for inv_data in data.get("investments", []):
             portfolio.add_investment(Investment.from_dict(inv_data))
         return portfolio
+
+
+class PlanItem:
+    """Un ítem de planificación: gasto fijo mensual, gasto puntual proyectado o meta de ahorro.
+    - amount: monto mensual (fijo), monto del gasto (puntual) o monto objetivo (meta).
+    - date: fecha del gasto puntual o fecha límite de la meta (no aplica a fijos).
+    - saved: cuánto llevas ahorrado (solo metas).
+    """
+    def __init__(self, name: str, amount: float, currency: str = "ARS", date: Optional[str] = None, saved: float = 0.0, id: Optional[str] = None) -> None:
+        self.id = id if id else uuid.uuid4().hex
+        self.name = name
+        self.amount = amount
+        self.currency = currency
+        self.date = date
+        self.saved = saved
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "name": self.name,
+            "amount": self.amount,
+            "currency": self.currency,
+            "date": self.date,
+            "saved": self.saved,
+        }
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'PlanItem':
+        return cls(
+            data["name"], data["amount"], data.get("currency", "ARS"),
+            data.get("date"), data.get("saved", 0.0), data.get("id")
+        )
+
+
+class BudgetPlan:
+    """Plan de presupuesto: ingreso mensual declarado + gastos fijos, gastos puntuales y metas de ahorro."""
+    KINDS = ("fixed", "planned", "goals")
+
+    def __init__(self, monthly_income: float = 0.0, income_currency: str = "ARS") -> None:
+        self.monthly_income = monthly_income
+        self.income_currency = income_currency
+        self.items: dict[str, list[PlanItem]] = {kind: [] for kind in self.KINDS}
+
+    def add_item(self, kind: str, item: PlanItem) -> None:
+        self.items[kind].append(item)
+
+    def edit_item(self, kind: str, item_id: str, new_data: dict) -> bool:
+        for item in self.items[kind]:
+            if item.id == item_id:
+                for field in ("name", "amount", "currency", "date", "saved"):
+                    if field in new_data:
+                        setattr(item, field, new_data[field])
+                return True
+        return False
+
+    def delete_item(self, kind: str, item_id: str) -> bool:
+        for i, item in enumerate(self.items[kind]):
+            if item.id == item_id:
+                del self.items[kind][i]
+                return True
+        return False
+
+    def to_dict(self) -> dict:
+        data: dict = {
+            "monthly_income": self.monthly_income,
+            "income_currency": self.income_currency,
+        }
+        for kind in self.KINDS:
+            data[kind] = [item.to_dict() for item in self.items[kind]]
+        return data
+
+    @classmethod
+    def from_dict(cls, data: dict) -> 'BudgetPlan':
+        plan = cls(data.get("monthly_income", 0.0), data.get("income_currency", "ARS"))
+        for kind in cls.KINDS:
+            for item_data in data.get(kind, []):
+                plan.add_item(kind, PlanItem.from_dict(item_data))
+        return plan

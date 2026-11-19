@@ -21,6 +21,7 @@ interface Debt {
   creditor: string;
   description: string;
   due_date: string | null;
+  deadline?: string | null;
   status: "pending" | "paid";
 }
 
@@ -39,6 +40,7 @@ export default function DeudasPage() {
   const [debtCurrency, setDebtCurrency] = useState("ARS");
   const [description, setDescription] = useState("");
   const [debtDate, setDebtDate] = useState("");
+  const [debtDeadline, setDebtDeadline] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   // Currency Dropdown States
@@ -94,6 +96,7 @@ export default function DeudasPage() {
     setDebtCurrency(currency); // Default to active global currency
     setDescription("");
     setDebtDate("");
+    setDebtDeadline("");
     setIsFormOpen(true);
   };
 
@@ -104,6 +107,7 @@ export default function DeudasPage() {
     setDebtCurrency(debt.currency);
     setDescription(debt.description);
     setDebtDate(debt.due_date || "");
+    setDebtDeadline(debt.deadline || "");
     setIsFormOpen(true);
   };
 
@@ -120,6 +124,7 @@ export default function DeudasPage() {
         currency: debtCurrency,
         description,
         due_date: debtDate || new Date().toISOString().split('T')[0],
+        deadline: debtDeadline || null,
         status: editingDebt ? editingDebt.status : "pending"
       };
 
@@ -434,6 +439,14 @@ export default function DeudasPage() {
                                       </span>
                                     </div>
                                   )}
+                                  {debt.deadline && (
+                                    <div className="flex items-center gap-1.5">
+                                      <CalendarIcon className="text-slate-400 text-[10px] shrink-0" />
+                                      <span className="text-[10px] font-bold uppercase tracking-wider text-amber-600 dark:text-amber-400">
+                                        Vence: {debt.deadline}
+                                      </span>
+                                    </div>
+                                  )}
                                 </div>
 
                                 {/* Amount */}
@@ -625,6 +638,30 @@ export default function DeudasPage() {
                     onChange={(e) => setDebtDate(e.target.value)}
                     className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-[#161616] border border-slate-200 dark:border-[#222] rounded-2xl text-sm font-semibold outline-none focus:border-pink-400 dark:focus:border-[#FFB7C5] transition-colors cursor-pointer"
                   />
+                </div>
+              </div>
+
+              {/* Deadline */}
+              <div className="flex flex-col gap-2">
+                <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Fecha de vencimiento (Opcional)</label>
+                <div className="relative">
+                  <CalendarIcon className="absolute left-4 top-3.5 text-slate-400" />
+                  <input
+                    type="date"
+                    value={debtDeadline}
+                    min={debtDate || undefined}
+                    onChange={(e) => setDebtDeadline(e.target.value)}
+                    className="w-full pl-11 pr-4 py-3 bg-slate-50 dark:bg-[#161616] border border-slate-200 dark:border-[#222] rounded-2xl text-sm font-semibold outline-none focus:border-pink-400 dark:focus:border-[#FFB7C5] transition-colors cursor-pointer"
+                  />
+                </div>
+                <div className="flex justify-between items-center">
+                  <span className="text-[11px] text-slate-400">Déjalo vacío si la deuda no tiene plazo.</span>
+                  {debtDeadline && (
+                    <button type="button" onClick={() => setDebtDeadline("")}
+                      className="text-[11px] font-bold text-pink-500 dark:text-[#FFB7C5] hover:underline cursor-pointer">
+                      Sin plazo
+                    </button>
+                  )}
                 </div>
               </div>
 

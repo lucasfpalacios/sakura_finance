@@ -83,6 +83,7 @@ class DebtSchema(BaseModel):
     description: str = ""
     due_date: Optional[str] = None
     status: Literal["pending", "paid"] = "pending"
+    deadline: Optional[str] = None
 
 
 class DebtUpdateSchema(BaseModel):
@@ -92,6 +93,7 @@ class DebtUpdateSchema(BaseModel):
     description: Optional[str] = None
     due_date: Optional[str] = None
     status: Optional[Literal["pending", "paid"]] = None
+    deadline: Optional[str] = None
 
 
 PlanKind = Literal["fixed", "planned", "goals"]
@@ -247,6 +249,7 @@ def add_debt(data: DebtSchema):
     debt = Debt(
         data.creditor, data.amount, data.currency,
         data.description, data.due_date, data.status,
+        deadline=data.deadline,
     )
     get_db()["debts"].insert_one(debt.to_dict())
     return debt.to_dict()
@@ -255,6 +258,9 @@ def add_debt(data: DebtSchema):
 @app.put("/api/debts/{debt_id}")
 def update_debt(debt_id: str, data: DebtUpdateSchema):
     updates = {k: v for k, v in data.dict().items() if v is not None}
+    # deadline=null enviado explícitamente significa "sin vencimiento"
+    if "deadline" in data.model_fields_set:
+        updates["deadline"] = data.deadline
     if not updates:
         raise HTTPException(status_code=400, detail="Sin cambios para aplicar")
     result = get_db()["debts"].update_one({"id": debt_id}, {"$set": updates})

@@ -32,7 +32,8 @@ interface Debt {
   amount: number;
   currency: Cur;
   description: string;
-  due_date: string | null;
+  due_date: string | null;   // fecha en que se tomó la deuda
+  deadline?: string | null;  // vencimiento (null = sin plazo)
   status: "pending" | "paid";
 }
 
@@ -75,6 +76,13 @@ function monthsUntil(date: string): number {
   const now = new Date();
   const [y, m] = date.split("-").map(Number);
   return (y - now.getFullYear()) * 12 + (m - 1 - now.getMonth());
+}
+
+// Mes y año en que se termina de pagar empezando el mes que viene (ej: "mar 2027")
+function finishMonth(months: number): string {
+  const now = new Date();
+  const end = new Date(now.getFullYear(), now.getMonth() + months, 1);
+  return end.toLocaleDateString("es-AR", { month: "short", year: "numeric" });
 }
 
 function isPast(date: string): boolean {
@@ -165,10 +173,10 @@ export default function PlanificacionPage() {
     const debtItems = debts.filter(d => d.status === "pending").map(d => {
       const months = plan.debt_months?.[d.id] ?? 0;
       const monthly = months > 0 ? toARS(d.amount, d.currency) / months : 0;
-      const dueMonths = d.due_date ? monthsUntil(d.due_date) : null;
-      // Avisar si el plazo elegido termina después del vencimiento
-      const overdue = !!d.due_date && isPast(d.due_date);
-      const lateVsDue = !overdue && months > 0 && dueMonths !== null && months > Math.max(1, dueMonths);
+      // Solo se compara contra el vencimiento si la deuda tiene uno
+      const dueMonths = d.deadline ? Math.max(1, monthsUntil(d.deadline)) : null;
+      const overdue = !!d.deadline && isPast(d.deadline);
+      const lateVsDue = !overdue && months > 0 && dueMonths !== null && months > dueMonths;
       return { ...d, months, monthly, dueMonths, overdue, lateVsDue };
     });
     const debtsMonthly = debtItems.reduce((s, d) => s + d.monthly, 0);
@@ -559,9 +567,12 @@ export default function PlanificacionPage() {
                           {d.description && <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{d.description}</p>}
                           {d.due_date && (
                             <p className="flex items-center gap-1 text-[10px] font-bold uppercase text-slate-400 mt-1">
-                              <CalendarIcon size={10} /> {d.overdue ? "Venció" : "Vence"} {d.due_date}
+                              <CalendarIcon size={10} /> Tomada {d.due_date}
                             </p>
                           )}
+                          <p className={`flex items-center gap-1 text-[10px] font-bold uppercase mt-0.5 ${d.overdue ? "text-red-500" : d.deadline ? "text-amber-600 dark:text-amber-400" : "text-slate-400"}`}>
+                            <CalendarIcon size={10} /> {d.deadline ? `${d.overdue ? "Venció" : "Vence"} ${d.deadline}` : "Sin vencimiento"}
+                          </p>
                         </div>
                         <div className="text-right shrink-0">
                           <p className="text-sm font-extrabold text-slate-950 dark:text-white">{formatOriginal(viewAmount, viewCur)}</p>
@@ -590,15 +601,25 @@ export default function PlanificacionPage() {
                           ))}
                         </select>
                         <span className="text-xs font-semibold text-sky-600 dark:text-sky-400 text-right">
-                          {d.months > 0 ? `${formatOriginal(viewAmount / d.months, viewCur)}/mes` : <span className="text-slate-400">Sin plazo, no suma</span>}
+                          {d.months > 0 ? `${formatOriginal(viewAmount / d.months, viewCur)}/mes` : <span className="text-slate-400">Elige un plazo para calcular</span>}
                         </span>
                       </div>
+                      {d.months > 0 && (
+                        <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                          Pagando {formatOriginal(viewAmount / d.months, viewCur)} por mes la saldás en {d.months} {d.months === 1 ? "mes" : "meses"} ({finishMonth(d.months)}).
+                        </p>
+                      )}
+                      {d.months === 0 && d.dueMonths !== null && !d.overdue && (
+                        <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400">
+                          Para llegar al vencimiento: {formatOriginal(viewAmount / d.dueMonths, viewCur)}/mes durante {d.dueMonths} {d.dueMonths === 1 ? "mes" : "meses"}.
+                        </p>
+                      )}
                       {d.overdue && (
                         <p className="text-[11px] font-semibold text-red-500">⚠️ Esta deuda ya está vencida.</p>
                       )}
                       {d.lateVsDue && (
                         <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
-                          ⚠️ Con este plazo terminarías después del vencimiento ({Math.max(0, d.dueMonths ?? 0)} {d.dueMonths === 1 ? "mes" : "meses"}).
+                          ⚠️ Terminarías después del vencimiento: para llegar a tiempo necesitas {d.dueMonths} {d.dueMonths === 1 ? "mes" : "meses"} o menos.
                         </p>
                       )}
                     </div>

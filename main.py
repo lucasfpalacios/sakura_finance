@@ -2,7 +2,7 @@ import os
 from typing import Optional, Literal, List
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from datetime import datetime
 from pymongo import MongoClient
 from pymongo.errors import PyMongoError
@@ -108,6 +108,10 @@ class PlanItemSchema(BaseModel):
     currency: str = "ARS"
     date: Optional[str] = None
     saved: float = 0.0
+
+
+class DebtMonthsSchema(BaseModel):
+    months: Optional[int] = Field(default=None, ge=1, le=120)  # None = quitar del plan
 
 
 class PlanItemUpdateSchema(BaseModel):
@@ -292,6 +296,15 @@ def update_income(data: IncomeSchema):
     plan.income_currency = data.currency
     save_plan(plan)
     return {"message": "Ingreso actualizado"}
+
+
+# Debe declararse antes de /api/planning/{kind}/{item_id} para que "debts" no caiga en esa ruta
+@app.put("/api/planning/debts/{debt_id}")
+def update_debt_months(debt_id: str, data: DebtMonthsSchema):
+    plan = load_plan()
+    plan.set_debt_months(debt_id, data.months)
+    save_plan(plan)
+    return {"message": "Plazo actualizado"}
 
 
 @app.post("/api/planning/{kind}")

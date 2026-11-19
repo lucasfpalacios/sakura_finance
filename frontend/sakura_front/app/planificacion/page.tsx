@@ -2,6 +2,7 @@
 
 import React, { useState, useEffect, useMemo, useCallback } from "react";
 import { useCurrency } from "../context/CurrencyContext";
+import Link from "next/link";
 import { FiPlus, FiTrash2, FiEdit2, FiX, FiCalendar, FiCheck } from "react-icons/fi";
 
 type Kind = "fixed" | "planned" | "goals";
@@ -22,10 +23,24 @@ interface Plan {
   fixed: PlanItem[];
   planned: PlanItem[];
   goals: PlanItem[];
+  debt_months: Record<string, number>;
+}
+
+interface Debt {
+  id: string;
+  creditor: string;
+  amount: number;
+  currency: Cur;
+  description: string;
+  due_date: string | null;
+  status: "pending" | "paid";
 }
 
 const API = `${process.env.NEXT_PUBLIC_API_URL}/api/planning`;
+const DEBTS_API = `${process.env.NEXT_PUBLIC_API_URL}/api/debts`;
 const CURRENCIES: Cur[] = ["ARS", "USD", "EUR"];
+const MONTH_OPTIONS = [1, 2, 3, 4, 5, 6, 9, 12, 18, 24, 36, 48, 60];
+const DEBT_BAR = "bg-sky-400";
 
 // Textos y colores de cada sección
 const KIND_CONFIG: Record<Kind, {
@@ -75,6 +90,7 @@ function formatOriginal(amount: number, currency: string) {
 export default function PlanificacionPage() {
   const { currency, rates, formatCurrency } = useCurrency();
   const [plan, setPlan] = useState<Plan | null>(null);
+  const [debts, setDebts] = useState<Debt[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
 
@@ -102,9 +118,11 @@ export default function PlanificacionPage() {
 
   const fetchPlan = async () => {
     try {
-      const res = await fetch(API);
+      const [res, debtsRes] = await Promise.all([fetch(API), fetch(DEBTS_API)]);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setPlan(await res.json());
+      // Si falla deudas, la planificación igual se muestra
+      if (debtsRes.ok) setDebts(await debtsRes.json());
       setError("");
     } catch (err) {
       console.error("Error al cargar la planificación:", err);
@@ -142,9 +160,20 @@ export default function PlanificacionPage() {
     });
     const goalsMonthly = goals.reduce((s, i) => s + i.monthly, 0);
 
-    const committed = fixed + plannedMonthly + goalsMonthly;
-    return { income, fixed, planned, plannedMonthly, goals, goalsMonthly, committed, free: income - committed };
-  }, [plan, toARS]);
+    const debtItems = debts.filter(d => d.status === "pending").map(d => {
+      const months = plan.debt_months?.[d.id] ?? 0;
+      const monthly = months > 0 ? toARS(d.amount, d.currency) / months : 0;
+      const dueMonths = d.due_date ? monthsUntil(d.due_date) : null;
+      // Avisar si el plazo elegido termina después del vencimiento
+      const lateVsDue = months > 0 && dueMonths !== null && months > Math.max(1, dueMonths);
+      return { ...d, months, monthly, dueMonths, lateVsDue };
+    });
+    const debtsMonthly = debtItems.reduce((s, d) => s + d.monthly, 0);
+    const debtsTotal = debtItems.reduce((s, d) => s + toARS(d.amount, d.currency), 0);
+
+    const committed = fixed + plannedMonthly + goalsMonthly + debtsMonthly;
+    return { income, fixed, planned, plannedMonthly, goals, goalsMonthly, debtItems, debtsMonthly, debtsTotal, committed, free: income - committed };
+  }, [plan, debts, toARS]);
 
   // ---- Acciones ----
   const openIncomeEdit = () => {
@@ -202,6 +231,22 @@ export default function PlanificacionPage() {
     } finally {
       setIsSubmitting(false);
     }
+  };
+
+  const setDebtMonths = async (debtId: string, months: number | null) => {
+    // Actualización optimista para que el select responda al instante
+    setPlan(p => {
+      if (!p) return p;
+      const debt_months = { ...(p.debt_months ?? {}) };
+      if (months) debt_months[debtId] = months; else delete debt_months[debtId];
+      return { ...p, debt_months };
+    });
+    const res = await fetch(`${API}/debts/${debtId}`, {
+      method: "PUT",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ months }),
+    });
+    if (!res.ok) fetchPlan();
   };
 
   const handleDelete = async (kind: Kind, item: PlanItem) => {
@@ -294,6 +339,17 @@ export default function PlanificacionPage() {
   }
 
   const pct = (v: number) => (summary.income > 0 ? Math.min(100, (v / summary.income) * 100) : 0);
+  // Segmentos apilados de la barra, recortados para no pasar del 100%
+  const barSegments = [
+    { value: summary.fixed, cls: KIND_CONFIG.fixed.bar },
+    { value: summary.plannedMonthly, cls: KIND_CONFIG.planned.bar },
+    { value: summary.goalsMonthly, cls: KIND_CONFIG.goals.bar },
+    { value: summary.debtsMonthly, cls: DEBT_BAR },
+  ].reduce<{ cls: string; width: number; used: number }[]>((acc, seg) => {
+    const used = acc.length ? acc[acc.length - 1].used : 0;
+    const width = Math.max(0, Math.min(pct(seg.value), 100 - used));
+    return [...acc, { cls: seg.cls, width, used: used + width }];
+  }, []);
   const overBudget = summary.free < 0;
 
   return (
@@ -348,15 +404,16 @@ export default function PlanificacionPage() {
           {summary.income > 0 && (
             <div className="flex flex-col gap-3">
               <div className="w-full h-4 rounded-full overflow-hidden flex bg-emerald-200 dark:bg-emerald-900/40">
-                <div className={KIND_CONFIG.fixed.bar} style={{ width: `${pct(summary.fixed)}%` }} />
-                <div className={KIND_CONFIG.planned.bar} style={{ width: `${Math.min(pct(summary.plannedMonthly), 100 - pct(summary.fixed))}%` }} />
-                <div className={KIND_CONFIG.goals.bar} style={{ width: `${Math.max(0, Math.min(pct(summary.goalsMonthly), 100 - pct(summary.fixed) - pct(summary.plannedMonthly)))}%` }} />
+                {barSegments.map(seg => (
+                  <div key={seg.cls} className={seg.cls} style={{ width: `${seg.width}%` }} />
+                ))}
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-4 gap-3 text-xs">
+              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
                 {[
                   { label: "Gastos fijos", value: summary.fixed, dot: KIND_CONFIG.fixed.bar },
                   { label: "Reserva proyectados", value: summary.plannedMonthly, dot: KIND_CONFIG.planned.bar },
                   { label: "Aporte a metas", value: summary.goalsMonthly, dot: KIND_CONFIG.goals.bar },
+                  { label: "Pago de deudas", value: summary.debtsMonthly, dot: DEBT_BAR },
                   { label: "Libre", value: Math.max(0, summary.free), dot: "bg-emerald-300 dark:bg-emerald-700" },
                 ].map(s => (
                   <div key={s.label} className="flex items-start gap-2">
@@ -370,7 +427,7 @@ export default function PlanificacionPage() {
               </div>
               {overBudget && (
                 <p className="text-xs font-semibold text-red-500 bg-red-50 dark:bg-red-500/10 rounded-xl px-3 py-2">
-                  Tus compromisos mensuales superan tu ingreso. Prueba mover fechas más lejos o reducir algún gasto fijo.
+                  Tus compromisos mensuales superan tu ingreso. Prueba mover fechas más lejos, alargar el plazo de alguna deuda o reducir algún gasto fijo.
                 </p>
               )}
             </div>
@@ -456,6 +513,84 @@ export default function PlanificacionPage() {
               </div>
             ))
           )}
+
+          {/* Pago de deudas: toma las deudas pendientes de la sección Deudas */}
+          <div className={`${card} p-6 flex flex-col gap-4 lg:col-span-3`}>
+            <div className="flex justify-between items-start gap-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">💳 Pago de deudas</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">
+                  Tus deudas pendientes. Elige en cuántos meses quieres pagar cada una y se calcula cuánto apartar por mes.
+                </p>
+              </div>
+              <Link href="/deudas"
+                className="text-xs font-bold text-pink-500 dark:text-[#FFB7C5] hover:underline shrink-0">
+                Ir a Deudas →
+              </Link>
+            </div>
+            <div className="flex flex-col sm:flex-row sm:justify-between gap-2 border-b border-slate-100 dark:border-[#222] pb-3">
+              <div className="flex justify-between sm:block items-baseline gap-3">
+                <span className={label}>Total adeudado</span>
+                <span className="sm:block text-xl font-extrabold text-slate-900 dark:text-white">{formatCurrency(summary.debtsTotal)}</span>
+              </div>
+              <div className="flex justify-between sm:block sm:text-right items-baseline gap-3">
+                <span className={label}>Apartar por mes</span>
+                <span className="sm:block text-xl font-extrabold text-sky-600 dark:text-sky-400">{formatCurrency(summary.debtsMonthly)}</span>
+              </div>
+            </div>
+            {summary.debtItems.length === 0 ? (
+              <p className="text-sm text-slate-400 dark:text-slate-500 italic text-center py-6">No tienes deudas pendientes. 🎉</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                {summary.debtItems.map(d => {
+                  const options = MONTH_OPTIONS.includes(d.months) || d.months === 0
+                    ? MONTH_OPTIONS
+                    : [...MONTH_OPTIONS, d.months].sort((a, b) => a - b);
+                  return (
+                    <div key={d.id} className={itemBox}>
+                      <div className="flex justify-between items-start gap-3">
+                        <div className="min-w-0">
+                          <p className="text-sm font-bold text-slate-800 dark:text-slate-200 truncate">{d.creditor}</p>
+                          {d.description && <p className="text-[11px] text-slate-500 dark:text-slate-400 truncate">{d.description}</p>}
+                          {d.due_date && (
+                            <p className="flex items-center gap-1 text-[10px] font-bold uppercase text-slate-400 mt-1">
+                              <CalendarIcon size={10} /> Vence {d.due_date}
+                            </p>
+                          )}
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-sm font-extrabold text-slate-950 dark:text-white">{formatOriginal(d.amount, d.currency)}</p>
+                          {currency !== d.currency && (
+                            <p className="text-[10px] font-bold text-slate-400 uppercase">≈ {formatCurrency(toARS(d.amount, d.currency))}</p>
+                          )}
+                        </div>
+                      </div>
+                      <div className="flex justify-between items-center gap-3">
+                        <select
+                          value={d.months || ""}
+                          onChange={e => setDebtMonths(d.id, e.target.value ? Number(e.target.value) : null)}
+                          className="px-3 py-2 bg-white dark:bg-[#111] border border-slate-200 dark:border-[#222] rounded-xl text-xs font-bold outline-none focus:border-pink-400 dark:focus:border-[#FFB7C5] cursor-pointer"
+                        >
+                          <option value="">Elegir plazo…</option>
+                          {options.map(m => (
+                            <option key={m} value={m}>{m} {m === 1 ? "mes" : "meses"}</option>
+                          ))}
+                        </select>
+                        <span className="text-xs font-semibold text-sky-600 dark:text-sky-400 text-right">
+                          {d.months > 0 ? `${formatCurrency(d.monthly)}/mes` : <span className="text-slate-400">Sin plazo, no suma</span>}
+                        </span>
+                      </div>
+                      {d.lateVsDue && (
+                        <p className="text-[11px] font-semibold text-amber-600 dark:text-amber-400">
+                          ⚠️ Con este plazo terminarías después del vencimiento ({Math.max(0, d.dueMonths ?? 0)} {d.dueMonths === 1 ? "mes" : "meses"}).
+                        </p>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+            )}
+          </div>
         </div>
       </div>
 

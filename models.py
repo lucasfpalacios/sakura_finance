@@ -286,6 +286,14 @@ class BudgetPlan:
         self.monthly_income = monthly_income
         self.income_currency = income_currency
         self.items: dict[str, list[PlanItem]] = {kind: [] for kind in self.KINDS}
+        # Plazo elegido (en meses) para pagar cada deuda de la sección Deudas: {debt_id: meses}
+        self.debt_months: dict[str, int] = {}
+
+    def set_debt_months(self, debt_id: str, months: Optional[int]) -> None:
+        if months:
+            self.debt_months[debt_id] = months
+        else:
+            self.debt_months.pop(debt_id, None)
 
     def add_item(self, kind: str, item: PlanItem) -> None:
         self.items[kind].append(item)
@@ -310,6 +318,7 @@ class BudgetPlan:
         data: dict = {
             "monthly_income": self.monthly_income,
             "income_currency": self.income_currency,
+            "debt_months": self.debt_months,
         }
         for kind in self.KINDS:
             data[kind] = [item.to_dict() for item in self.items[kind]]
@@ -321,4 +330,5 @@ class BudgetPlan:
         for kind in cls.KINDS:
             for item_data in data.get(kind, []):
                 plan.add_item(kind, PlanItem.from_dict(item_data))
+        plan.debt_months = dict(data.get("debt_months", {}))
         return plan

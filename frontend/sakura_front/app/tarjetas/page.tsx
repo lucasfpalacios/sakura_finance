@@ -269,7 +269,8 @@ export default function TarjetasPage() {
                 const usage = c.limit ? Math.min(100, (debt / c.limit) * 100) : null;
                 const isSel = c.id === selectedId;
                 return (
-                  <button key={c.id} onClick={() => selectCard(c)}
+                  <button key={c.id} onClick={() => (isSel ? openCardForm(c) : selectCard(c))}
+                    title={isSel ? "Editar tarjeta" : "Ver resúmenes"}
                     className={`snap-start shrink-0 w-72 h-44 rounded-3xl p-5 text-left text-white bg-gradient-to-br ${cardGradient(c.color)} shadow-lg flex flex-col justify-between transition-all cursor-pointer ${isSel ? "ring-2 ring-offset-4 ring-pink-400 ring-offset-slate-50 dark:ring-[#FFB7C5] dark:ring-offset-[#0a0a0a]" : "opacity-75 hover:opacity-100"}`}>
                     <div className="flex justify-between items-start">
                       <div>
@@ -392,6 +393,12 @@ export default function TarjetasPage() {
               </div>
               {formError && <p className="text-xs font-semibold text-red-500 bg-red-50 dark:bg-red-500/10 rounded-xl px-3 py-2">{formError}</p>}
               <button type="submit" disabled={saving} className={`w-full mt-2 py-3.5 text-sm ${primaryBtn}`}>{saving ? "Guardando…" : cardForm.editing ? "Guardar cambios" : "Agregar tarjeta"}</button>
+              {cardForm.editing && (
+                <button type="button" onClick={() => { const c = cardForm.editing!; setCardForm(null); deleteCard(c); }}
+                  className="w-full py-2.5 text-sm font-bold text-slate-400 hover:text-red-500 transition-colors cursor-pointer">
+                  Eliminar tarjeta
+                </button>
+              )}
             </form>
           </div>
         </div>

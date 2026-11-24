@@ -2,7 +2,8 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { API_URL, apiFetch, getToken, setToken } from "../../src/lib/api";
+import { API_URL, apiFetch, getCachedUser, getToken, setCachedUser, setToken } from "../../src/lib/api";
+import { PageSkeleton } from "../../src/components/Skeleton";
 
 export interface User {
   id: string;
@@ -38,8 +39,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setLoading(false);
       return;
     }
+    // Con un usuario guardado, la app se muestra al instante y la sesión se valida en segundo plano.
+    // Si el token venció, apiFetch limpia la sesión y manda a /login.
+    const cached = getCachedUser<User>();
+    if (cached) {
+      setUser(cached);
+      setLoading(false);
+    }
     apiFetch(`${API_URL}/api/auth/me`)
-      .then(async res => { if (res.ok) setUser(await res.json()); })
+      .then(async res => {
+        if (!res.ok) return;
+        const fresh: User = await res.json();
+        setUser(fresh);
+        setCachedUser(fresh);
+      })
       .catch(err => console.error("Error al validar la sesión:", err))
       .finally(() => setLoading(false));
   }, []);
@@ -54,6 +67,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const signIn = useCallback((token: string, u: User) => {
     setToken(token);
     setUser(u);
+    setCachedUser(u);
+  }, []);
+
+  const updateUser = useCallback((u: User) => {
+    setUser(u);
+    setCachedUser(u);
   }, []);
 
   const signOut = useCallback(() => {
@@ -67,12 +86,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const blocked = !isPublic && (loading || !user);
 
   return (
-    <AuthContext.Provider value={{ user, loading, signIn, signOut, updateUser: setUser }}>
-      {blocked ? (
-        <div className="flex justify-center items-center min-h-screen">
-          <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-pink-400 dark:border-[#FFB7C5]"></div>
-        </div>
-      ) : children}
+    <AuthContext.Provider value={{ user, loading, signIn, signOut, updateUser }}>
+      {blocked ? <PageSkeleton /> : children}
     </AuthContext.Provider>
   );
 }

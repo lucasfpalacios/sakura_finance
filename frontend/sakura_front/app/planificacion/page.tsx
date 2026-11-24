@@ -6,6 +6,7 @@ import Link from "next/link";
 import { FiPlus, FiTrash2, FiEdit2, FiX, FiCalendar, FiCheck } from "react-icons/fi";
 import { apiFetch } from "../../src/lib/api";
 import { Statement, nextStatements, statementARS, formatDay } from "../../src/lib/cards";
+import { PageSkeleton } from "../../src/components/Skeleton";
 
 type Kind = "fixed" | "planned" | "goals";
 type Cur = "ARS" | "USD" | "EUR";
@@ -366,13 +367,7 @@ export default function PlanificacionPage() {
   const itemBox = "p-4 rounded-2xl bg-slate-50 dark:bg-[#161616] border border-slate-100 dark:border-[#222]/50 flex flex-col gap-2";
 
   // ---- Render ----
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-32">
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-pink-400 dark:border-[#FFB7C5]"></div>
-      </div>
-    );
-  }
+  if (loading) return <PageSkeleton stats={0} blocks={3} />;
 
   if (error || !plan || !summary) {
     return <p className="text-center text-red-500 py-32 font-semibold">{error || "Error desconocido"}</p>;

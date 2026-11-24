@@ -9,6 +9,7 @@ import {
   CARD_COLORS, cardGradient, cardDebtARS, firstStatementMonth, formatDay, formatMoney,
   monthLabel, statementDates, nextStatements, overdueStatements, shiftMonth, statementARS,
 } from "../../src/lib/cards";
+import { PageSkeleton } from "../../src/components/Skeleton";
 
 const API = `${API_URL}/api/cards`;
 const todayISO = () => new Date().toISOString().split("T")[0];
@@ -196,13 +197,7 @@ export default function TarjetasPage() {
   const label = "text-xs font-bold text-slate-400 uppercase tracking-wider";
   const primaryBtn = "bg-gradient-to-r from-pink-500 to-rose-500 dark:from-[#FFB7C5] dark:to-[#ffa0b3] text-white dark:text-black font-extrabold rounded-2xl hover:opacity-90 transition-all disabled:opacity-50 cursor-pointer";
 
-  if (loading) {
-    return (
-      <div className="flex justify-center items-center py-32">
-        <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-pink-400 dark:border-[#FFB7C5]"></div>
-      </div>
-    );
-  }
+  if (loading) return <PageSkeleton stats={0} blocks={2} />;
   if (error || !data) return <p className="text-center text-red-500 py-32 font-semibold">{error || "Error desconocido"}</p>;
 
   const purchaseCard = data.cards.find(c => c.id === pCard);

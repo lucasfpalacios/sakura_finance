@@ -2,6 +2,7 @@
 
 export const API_URL = process.env.NEXT_PUBLIC_API_URL;
 const TOKEN_KEY = "sakura_token";
+const USER_KEY = "sakura_user"; // copia del usuario para mostrar la app sin esperar a /api/auth/me
 
 export function getToken(): string | null {
   try {
@@ -14,9 +15,29 @@ export function getToken(): string | null {
 export function setToken(token: string | null) {
   try {
     if (token) localStorage.setItem(TOKEN_KEY, token);
-    else localStorage.removeItem(TOKEN_KEY);
+    else {
+      localStorage.removeItem(TOKEN_KEY);
+      localStorage.removeItem(USER_KEY);
+    }
   } catch {
     // Navegación privada / storage bloqueado: la sesión dura lo que la pestaña
+  }
+}
+
+export function getCachedUser<T>(): T | null {
+  try {
+    const raw = localStorage.getItem(USER_KEY);
+    return raw ? (JSON.parse(raw) as T) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setCachedUser(user: unknown) {
+  try {
+    localStorage.setItem(USER_KEY, JSON.stringify(user));
+  } catch {
+    // storage lleno o bloqueado: solo se pierde el arranque instantáneo
   }
 }
 

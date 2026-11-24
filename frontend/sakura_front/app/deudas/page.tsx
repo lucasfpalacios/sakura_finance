@@ -14,6 +14,7 @@ import {
   FiX
 } from "react-icons/fi";
 import { apiFetch } from "../../src/lib/api";
+import { CardSkeleton } from "../../src/components/Skeleton";
 
 interface Debt {
   id: string;
@@ -367,8 +368,9 @@ export default function DeudasPage() {
 
         {/* List Section */}
         {loading ? (
-          <div className="flex justify-center items-center py-20">
-            <div className="animate-spin rounded-full h-10 w-10 border-t-2 border-b-2 border-pink-400 dark:border-[#FFB7C5]"></div>
+          <div className="flex flex-col gap-4" aria-busy="true">
+            <CardSkeleton rows={2} />
+            <CardSkeleton rows={2} />
           </div>
         ) : (
           <div>

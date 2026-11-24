@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useState, useEffect } from "react";
+import React, { createContext, useContext, useState, useEffect, useRef } from "react";
 import { useCurrency } from "./CurrencyContext";
 import { apiFetch } from "../../src/lib/api";
 
@@ -20,7 +20,7 @@ interface NotificationContextProps {
   markAsRead: (id: string) => void;
   markAllAsRead: () => void;
   clearAll: () => void;
-  refreshNotifications: () => Promise<void>;
+  refreshNotifications: (force?: boolean) => Promise<void>;
 }
 
 const NotificationContext = createContext<NotificationContextProps | undefined>(undefined);
@@ -85,7 +85,7 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
   };
 
   // Automated checker engine
-  const refreshNotifications = async () => {
+  const runRefresh = async () => {
     try {
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/report`);
       if (!res.ok) return;
@@ -196,10 +196,24 @@ export const NotificationProvider = ({ children }: { children: React.ReactNode }
     }
   };
 
+  // Evita pedidos repetidos: si ya hay uno en curso se reutiliza. Las llamadas automáticas
+  // (force = false) además se saltean si hubo una hace menos de 3 s; tras un cambio del usuario se fuerza.
+  const inFlight = useRef<Promise<void> | null>(null);
+  const lastRun = useRef(0);
+  const refreshNotifications = async (force = true) => {
+    if (inFlight.current) return inFlight.current;
+    if (!force && Date.now() - lastRun.current < 3000) return;
+    inFlight.current = runRefresh().finally(() => {
+      lastRun.current = Date.now();
+      inFlight.current = null;
+    });
+    return inFlight.current;
+  };
+
   // Run automatic check on rates update/currency changes or initialization
   useEffect(() => {
     if (rates[currency]) {
-      refreshNotifications();
+      refreshNotifications(false);
     }
   }, [rates, currency]);
 

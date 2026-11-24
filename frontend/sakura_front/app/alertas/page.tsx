@@ -16,6 +16,7 @@ import {
   FiList 
 } from "react-icons/fi";
 import { apiFetch } from "../../src/lib/api";
+import { PageSkeleton } from "../../src/components/Skeleton";
 
 interface Transaction {
   id: string;
@@ -334,13 +335,7 @@ export default function AlertasPage() {
     };
   }, [budgetUsagePercent]);
 
-  if (loading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center bg-white dark:bg-[#0a0a0a]">
-        <p className="text-xl font-bold animate-pulse text-pink-500">Cargando alertas...</p>
-      </div>
-    );
-  }
+  if (loading) return <PageSkeleton stats={2} blocks={2} />;
 
   return (
     <div className="min-h-screen font-sans overflow-x-hidden bg-white dark:bg-[#0a0a0a] transition-colors duration-300">

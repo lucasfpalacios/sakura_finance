@@ -5,6 +5,7 @@ import { PieChart, Pie, Cell, Tooltip, ResponsiveContainer, AreaChart, Area, XAx
 import { useCurrency } from "../context/CurrencyContext";
 import { FiTrash2, FiRefreshCw, FiPlus, FiX, FiTag, FiType, FiHash, FiDollarSign, FiEdit2 } from "react-icons/fi";
 import { apiFetch } from "../../src/lib/api";
+import { PageSkeleton } from "../../src/components/Skeleton";
 
 const COLORS = [
   "#F472B6", "#38BDF8", "#FBBF24", "#34D399", "#A78BFA", "#FB7185", "#2DD4BF"
@@ -67,7 +68,8 @@ export default function Inversiones() {
   const updateLivePrices = async (invs: any[]) => {
     const prices: Record<string, number> = { ...livePrices };
     
-    for (const inv of invs) {
+    // Todas las cotizaciones en paralelo (antes, una cripto por vez)
+    await Promise.all(invs.map(async (inv) => {
       if (inv.type === "crypto") {
         try {
           // Binance API for Crypto (Ticker must end in USDT, e.g., BTCUSDT)
@@ -96,7 +98,8 @@ export default function Inversiones() {
             prices[inv.ticker] = inv.purchase_price * (1 + (Math.random() * 0.15 - 0.05));
         }
       }
-    }
+    }));
+
     setLivePrices(prices);
   };
 
@@ -327,9 +330,7 @@ export default function Inversiones() {
 
   const monthlyData = getMonthlyInvestments();
 
-  if (loading) {
-    return <div className="min-h-screen flex items-center justify-center"><p className="text-xl font-bold animate-pulse text-pink-500">Cargando portafolio...</p></div>;
-  }
+  if (loading) return <PageSkeleton stats={3} blocks={2} />;
 
   return (
     <div className="min-h-screen font-sans overflow-x-hidden">

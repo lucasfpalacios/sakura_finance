@@ -8,6 +8,7 @@ import { FiEdit2, FiTrash2, FiX } from "react-icons/fi";
 import { apiFetch } from "../src/lib/api";
 import { Statement, monthCardsARS, statementARS, formatMoney } from "../src/lib/cards";
 import Link from "next/link";
+import { Skeleton, CardSkeleton } from "../src/components/Skeleton";
 
 const getEmoji = (text: string) => {
   const lower = text.toLowerCase();
@@ -103,39 +104,59 @@ export default function Home() {
   const [successMessage, setSuccessMessage] = useState("");
   const [transactionToDelete, setTransactionToDelete] = useState<string | null>(null);
 
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL;
+
+  // Reporte del mes elegido
+  const fetchMonth = async (month: string) => {
+    const res = await apiFetch(`${API_BASE}/api/report?month=${month}`);
+    if (res.ok) setWallet(await res.json());
+  };
+
+  // Reportes (mes + histórico): lo único que cambia al cargar/editar/borrar movimientos
+  const fetchWallet = async () => {
+    const [res, globalRes] = await Promise.all([
+      apiFetch(`${API_BASE}/api/report?month=${currentMonth}`),
+      apiFetch(`${API_BASE}/api/report`),
+    ]);
+    if (res.ok) setWallet(await res.json());
+    if (globalRes.ok) setGlobalWallet(await globalRes.json());
+  };
+
+  // Inversiones, deudas y tarjetas: se cargan una vez al entrar
+  const fetchExtras = async () => {
+    const [invRes, debtsRes, cardsRes] = await Promise.all([
+      apiFetch(`${API_BASE}/api/investments`),
+      apiFetch(`${API_BASE}/api/debts`),
+      apiFetch(`${API_BASE}/api/cards`),
+    ]);
+    if (invRes.ok) setInvestments((await invRes.json()).investments || []);
+    if (debtsRes.ok) setDebts(await debtsRes.json());
+    // Tarjetas: la cuota de cada resumen suma como gasto del mes en que cierra
+    if (cardsRes.ok) {
+      const cardsData = await cardsRes.json();
+      setCardStatements(cardsData.statements || []);
+      setCardNames(Object.fromEntries((cardsData.cards || []).map((c: any) => [c.id, c.name])));
+    }
+  };
+
+  // Carga inicial: todo en paralelo (antes eran 5 pedidos uno detrás de otro)
   const fetchData = async () => {
     try {
-      const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/report?month=${currentMonth}`);
-      const data = await res.json();
-      setWallet(data);
-      
-      const globalRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/report`);
-      setGlobalWallet(await globalRes.json());
-      
-      const invRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/investments`);
-      if (invRes.ok) {
-        const invData = await invRes.json();
-        setInvestments(invData.investments || []);
-      }
-      
-      const debtsRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/debts`);
-      if (debtsRes.ok) {
-        setDebts(await debtsRes.json());
-      }
-
-      // Tarjetas: la cuota de cada resumen suma como gasto del mes en que cierra
-      const cardsRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/cards`);
-      if (cardsRes.ok) {
-        const cardsData = await cardsRes.json();
-        setCardStatements(cardsData.statements || []);
-        setCardNames(Object.fromEntries((cardsData.cards || []).map((c: any) => [c.id, c.name])));
-      }
-      
-      refreshNotifications();
+      await Promise.all([fetchWallet(), fetchExtras()]);
     } catch (err) {
       console.error("Error al cargar datos:", err);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // Después de cargar/editar/borrar un movimiento
+  const refreshWallet = async () => {
+    try {
+      await fetchWallet();
+      refreshNotifications();
+    } catch (err) {
+      console.error("Error al actualizar:", err);
     }
   };
 
@@ -151,7 +172,7 @@ export default function Home() {
         setIsCategoryModalOpen(false);
         setNewCatName("");
         setCategoryName(newCatName);
-        await fetchData();
+        await refreshWallet();
       } else {
         const errData = await res.json();
         alert(errData.detail);
@@ -161,8 +182,15 @@ export default function Home() {
     }
   };
 
+  // Al entrar se carga todo; al cambiar de mes, solo el reporte de ese mes
+  const firstLoad = useRef(true);
   useEffect(() => {
-    fetchData();
+    if (firstLoad.current) {
+      firstLoad.current = false;
+      fetchData();
+    } else {
+      fetchMonth(currentMonth).catch(err => console.error("Error al cargar el mes:", err));
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [currentMonth]);
 
@@ -241,7 +269,7 @@ export default function Home() {
         setAmount("");
         setDescription("");
         setCategoryName("");
-        await fetchData();
+        await refreshWallet();
         setSuccessMessage(`¡${activeTab === 'expense' ? 'Gasto' : 'Ingreso'} creado con éxito!`);
       } else {
         const errorData = await res.json();
@@ -260,7 +288,7 @@ export default function Home() {
       const res = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/transaction/${transactionToDelete}`, { method: "DELETE" });
       if (res.ok) {
         setTransactionToDelete(null);
-        await fetchData();
+        await refreshWallet();
         setSuccessMessage("Registro eliminado con éxito.");
       }
     } catch (err) {
@@ -292,7 +320,7 @@ export default function Home() {
 
       if (res.ok) {
         setEditingTransaction(null);
-        await fetchData();
+        await refreshWallet();
         setSuccessMessage("Registro actualizado correctamente.");
       }
     } catch (err) {
@@ -578,7 +606,7 @@ export default function Home() {
                 <div className="min-w-0">
                   <p className="text-xs font-medium text-slate-500 dark:text-slate-400 uppercase tracking-widest mb-1">{card.label}</p>
                   <p className={`text-2xl font-extrabold whitespace-nowrap ${card.valueCls}`}>
-                    {card.label === "Balance" && card.value > 0 ? "+" : ""}{formatCurrency(card.value)}
+                    {loading ? <Skeleton className="h-7 w-28 mt-1" /> : <>{card.label === "Balance" && card.value > 0 ? "+" : ""}{formatCurrency(card.value)}</>}
                   </p>
                 </div>
               </div>
@@ -587,8 +615,25 @@ export default function Home() {
         </header>
 
         {loading ? (
-          <div className="flex justify-center items-center h-40">
-            <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-pink-400 dark:border-[#FFB7C5]"></div>
+          <div className="flex flex-col gap-8 pb-10" aria-busy="true">
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 bg-white dark:bg-[#111] rounded-3xl border border-slate-200 dark:border-[#222] p-6 flex flex-col gap-4">
+                <Skeleton className="h-6 w-48" />
+                <Skeleton className="h-4 w-32" />
+                <Skeleton className="h-64 w-full mt-2" />
+              </div>
+              <div className="bg-white dark:bg-[#111] rounded-3xl border border-slate-200 dark:border-[#222] p-6 flex flex-col items-center gap-4">
+                <Skeleton className="h-6 w-32 self-start" />
+                <Skeleton className="h-48 w-48 rounded-full mt-4" />
+              </div>
+            </div>
+            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+              <div className="lg:col-span-2 flex flex-col gap-6">
+                <CardSkeleton rows={3} />
+                <CardSkeleton rows={2} />
+              </div>
+              <CardSkeleton rows={4} />
+            </div>
           </div>
         ) : (
           <div className="flex flex-col gap-8 pb-10">

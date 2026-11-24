@@ -577,7 +577,7 @@ export default function Inversiones() {
 
       {/* Add Investment Form Popup Modal */}
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex justify-center items-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex justify-center items-center p-4" onMouseDown={e => { if (e.target === e.currentTarget) setIsFormOpen(false); }}>
           <div className="bg-white dark:bg-[#111] rounded-[2.5rem] border border-slate-200 dark:border-[#222] max-w-md w-full p-8 shadow-2xl flex flex-col gap-6 animate-in scale-in duration-300">
             
             <div className="flex justify-between items-center">
@@ -690,7 +690,7 @@ export default function Inversiones() {
 
       {/* Delete Confirmation Modal */}
       {investmentToDelete && (
-        <div className="fixed inset-0 z-[60] bg-black/60 dark:bg-black/80 backdrop-blur-sm flex justify-center items-center p-4">
+        <div className="fixed inset-0 z-[60] bg-black/60 dark:bg-black/80 backdrop-blur-sm flex justify-center items-center p-4" onMouseDown={e => { if (e.target === e.currentTarget) setInvestmentToDelete(null); }}>
           <div className="bg-white dark:bg-[#111] rounded-[2.5rem] border border-slate-200 dark:border-[#222] max-w-sm w-full p-8 shadow-2xl flex flex-col gap-6 animate-in zoom-in-95 duration-200">
             <div className="flex flex-col items-center text-center gap-4">
               <div className="w-16 h-16 bg-red-100 dark:bg-red-500/10 text-red-500 rounded-full flex items-center justify-center text-2xl mb-2">

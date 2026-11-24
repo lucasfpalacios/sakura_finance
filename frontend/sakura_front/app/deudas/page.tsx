@@ -525,7 +525,7 @@ export default function DeudasPage() {
 
       {/* Add / Edit Debt Popup Modal */}
       {isFormOpen && (
-        <div className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex justify-center items-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex justify-center items-center p-4" onMouseDown={e => { if (e.target === e.currentTarget) setIsFormOpen(false); }}>
           <div className="bg-white dark:bg-[#111] rounded-[2.5rem] border border-slate-200 dark:border-[#222] max-w-md w-full p-8 shadow-2xl flex flex-col gap-6 animate-in scale-in duration-300">
             
             <div className="flex justify-between items-center">

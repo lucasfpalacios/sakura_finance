@@ -45,7 +45,7 @@ export default function Home() {
   
   // Year navigation and comparative view state for Balance History
   const [selectedYear, setSelectedYear] = useState<number>(new Date().getFullYear());
-  const [chartView, setChartView] = useState<"balance" | "details" | "investments" | "debts" | "hormiga">("balance");
+  const [chartView, setChartView] = useState<"balance" | "details" | "investments" | "debts" | "hormiga" | "cards">("balance");
   const [investments, setInvestments] = useState<any[]>([]);
   const [debts, setDebts] = useState<any[]>([]);
   const [cardStatements, setCardStatements] = useState<Statement[]>([]);
@@ -170,12 +170,14 @@ export default function Home() {
     const date = new Date(currentMonth + "-01T12:00:00");
     date.setMonth(date.getMonth() - 1);
     setCurrentMonth(date.toISOString().slice(0, 7));
+    setSelectedYear(date.getFullYear()); // el gráfico anual sigue al mes elegido
   };
 
   const handleNextMonth = () => {
     const date = new Date(currentMonth + "-01T12:00:00");
     date.setMonth(date.getMonth() + 1);
     setCurrentMonth(date.toISOString().slice(0, 7));
+    setSelectedYear(date.getFullYear()); // el gráfico anual sigue al mes elegido
   };
 
   const formatMonthYear = (yyyyMM: string) => {
@@ -317,12 +319,12 @@ export default function Home() {
 
   // Area Chart Data Computation
   const getMonthlyData = () => {
-    const monthsMap: Record<string, { income: number; expense: number; investments: number; debts: number; hormiga: number }> = {};
+    const monthsMap: Record<string, { income: number; expense: number; investments: number; debts: number; hormiga: number; cards: number }> = {};
     
     // Initialize all 12 months of selectedYear with 0
     for (let m = 1; m <= 12; m++) {
       const monthStr = `${selectedYear}-${String(m).padStart(2, '0')}`;
-      monthsMap[monthStr] = { income: 0, expense: 0, investments: 0, debts: 0, hormiga: 0 };
+      monthsMap[monthStr] = { income: 0, expense: 0, investments: 0, debts: 0, hormiga: 0, cards: 0 };
     }
     
     // Read Gastos Hormiga configuration from localStorage
@@ -343,7 +345,7 @@ export default function Home() {
           const yr = t.date.slice(0, 4);
           if (yr === String(selectedYear)) {
             if (!monthsMap[month]) {
-              monthsMap[month] = { income: 0, expense: 0, investments: 0, debts: 0, hormiga: 0 };
+              monthsMap[month] = { income: 0, expense: 0, investments: 0, debts: 0, hormiga: 0, cards: 0 };
             }
             if (cat.type === "income") {
               monthsMap[month].income += t.amount;
@@ -387,7 +389,7 @@ export default function Home() {
           const yr = inv.date.slice(0, 4);
           if (yr === String(selectedYear)) {
             if (!monthsMap[month]) {
-              monthsMap[month] = { income: 0, expense: 0, investments: 0, debts: 0, hormiga: 0 };
+              monthsMap[month] = { income: 0, expense: 0, investments: 0, debts: 0, hormiga: 0, cards: 0 };
             }
             monthsMap[month].investments += inv.quantity * inv.purchase_price;
           }
@@ -403,7 +405,7 @@ export default function Home() {
         const yr = dateStr.slice(0, 4);
         if (yr === String(selectedYear)) {
           if (!monthsMap[month]) {
-            monthsMap[month] = { income: 0, expense: 0, investments: 0, debts: 0, hormiga: 0 };
+            monthsMap[month] = { income: 0, expense: 0, investments: 0, debts: 0, hormiga: 0, cards: 0 };
           }
           // Convert debt to ARS base for chart
           const rate = rates[debt.currency as "ARS" | "USD" | "EUR"] || 1;
@@ -415,7 +417,9 @@ export default function Home() {
     // Tarjetas: cada resumen suma al gasto del mes en que cierra
     cardStatements.forEach(st => {
       if (st.month.startsWith(String(selectedYear)) && monthsMap[st.month]) {
-        monthsMap[st.month].expense += statementARS(st, rates);
+        const value = statementARS(st, rates);
+        monthsMap[st.month].expense += value;
+        monthsMap[st.month].cards += value;
       }
     });
 
@@ -428,7 +432,8 @@ export default function Home() {
         Balance: monthsMap[month].income - monthsMap[month].expense,
         Investments: monthsMap[month].investments,
         Debts: monthsMap[month].debts,
-        Hormiga: monthsMap[month].hormiga
+        Hormiga: monthsMap[month].hormiga,
+        Cards: monthsMap[month].cards
       };
     });
   };
@@ -440,6 +445,7 @@ export default function Home() {
   const currentTotalInvested = chartDataArea.reduce((sum, d) => sum + d.Investments, 0);
   const currentTotalDebts = chartDataArea.reduce((sum, d) => sum + d.Debts, 0);
   const currentTotalHormiga = chartDataArea.reduce((sum, d) => sum + d.Hormiga, 0);
+  const currentTotalCards = chartDataArea.reduce((sum, d) => sum + d.Cards, 0);
 
   const getCategoryColor = (categoryName: string) => {
     const lower = categoryName.toLowerCase();
@@ -497,6 +503,10 @@ export default function Home() {
                 name = "Gastos Hormiga";
                 colorClass = "text-[#8B4513] dark:text-[#A0522D]";
                 dotColor = "bg-[#8B4513]";
+              } else if (item.dataKey === "Cards") {
+                name = "Tarjetas";
+                colorClass = "text-fuchsia-600 dark:text-fuchsia-400";
+                dotColor = "bg-fuchsia-500";
               }
               
               return (
@@ -582,7 +592,7 @@ export default function Home() {
           </div>
         ) : (
           <div className="flex flex-col gap-8 pb-10">
-            
+
             {/* Top Charts Row */}
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
               <div className="lg:col-span-2 bg-white dark:bg-[#111] p-8 rounded-[2rem] border border-slate-200 dark:border-[#222] shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none flex flex-col justify-between min-h-[450px]">
@@ -595,6 +605,7 @@ export default function Home() {
                         {chartView === "investments" && "Inversión Anual"}
                         {chartView === "debts" && "Historial de Deudas"}
                         {chartView === "hormiga" && "Fugas Hormiga"}
+                        {chartView === "cards" && "Tarjetas de Crédito"}
                       </h3>
                       <p className="text-slate-400 dark:text-slate-500 text-xs font-semibold uppercase tracking-wider">
                         {chartView === "balance" && "Ahorro Neto + Activos/Pasivos"}
@@ -602,6 +613,7 @@ export default function Home() {
                         {chartView === "investments" && "Fondo de Inversión"}
                         {chartView === "debts" && "Historial de Pasivos"}
                         {chartView === "hormiga" && "Consumo Hormiga"}
+                        {chartView === "cards" && "Resúmenes por mes"}
                       </p>
                     </div>
 
@@ -643,6 +655,12 @@ export default function Home() {
                           <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5">Gastos Hormiga Anual</p>
                         </div>
                       )}
+                      {chartView === "cards" && (
+                        <div>
+                          <p className="text-3xl font-extrabold text-fuchsia-500 tracking-tight whitespace-nowrap">{formatCurrency(currentTotalCards)}</p>
+                          <p className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider mt-0.5">Tarjetas Anual</p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
@@ -679,6 +697,12 @@ export default function Home() {
                         className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${chartView === "hormiga" ? 'bg-white dark:bg-[#2a2a2a] text-rose-500 dark:text-rose-400 shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
                       >
                         Gastos Hormiga
+                      </button>
+                      <button 
+                        onClick={() => setChartView("cards")}
+                        className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${chartView === "cards" ? 'bg-white dark:bg-[#2a2a2a] text-fuchsia-500 dark:text-fuchsia-400 shadow-sm' : 'text-slate-500 hover:text-slate-800 dark:hover:text-slate-300'}`}
+                      >
+                        Tarjetas
                       </button>
                     </div>
 
@@ -733,6 +757,10 @@ export default function Home() {
                           <stop offset="5%" stopColor="#8B4513" stopOpacity={0.3}/>
                           <stop offset="95%" stopColor="#8B4513" stopOpacity={0}/>
                         </linearGradient>
+                        <linearGradient id="colorCards" x1="0" y1="0" x2="0" y2="1">
+                          <stop offset="5%" stopColor="#D946EF" stopOpacity={0.3}/>
+                          <stop offset="95%" stopColor="#D946EF" stopOpacity={0}/>
+                        </linearGradient>
                       </defs>
                       <XAxis dataKey="name" stroke="#64748b" tick={{fill: '#94a3b8', fontSize: 11}} tickLine={false} axisLine={false} dy={10} />
                       <YAxis hide />
@@ -745,6 +773,7 @@ export default function Home() {
                           <Area type="monotone" dataKey="Investments" name="Inversiones" stroke="#A78BFA" strokeWidth={2} fillOpacity={0.15} fill="url(#colorInvestments)" />
                           <Area type="monotone" dataKey="Debts" name="Deudas" stroke="#F59E0B" strokeWidth={2} fillOpacity={0.15} fill="url(#colorDebts)" />
                           <Area type="monotone" dataKey="Hormiga" name="Gastos Hormiga" stroke="#8B4513" strokeWidth={2} fillOpacity={0.15} fill="url(#colorHormiga)" />
+                          <Area type="monotone" dataKey="Cards" name="Tarjetas" stroke="#D946EF" strokeWidth={2} fillOpacity={0.15} fill="url(#colorCards)" />
                         </>
                       )}
                       {chartView === "details" && (
@@ -761,6 +790,9 @@ export default function Home() {
                       )}
                       {chartView === "hormiga" && (
                         <Area type="monotone" dataKey="Hormiga" name="Gastos Hormiga" stroke="#8B4513" strokeWidth={3} fillOpacity={1} fill="url(#colorHormiga)" />
+                      )}
+                      {chartView === "cards" && (
+                        <Area type="monotone" dataKey="Cards" name="Tarjetas" stroke="#D946EF" strokeWidth={3} fillOpacity={1} fill="url(#colorCards)" />
                       )}
                     </AreaChart>
                   </ResponsiveContainer>

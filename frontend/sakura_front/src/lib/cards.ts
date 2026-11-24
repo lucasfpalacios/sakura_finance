@@ -22,6 +22,7 @@ export interface CardPurchase {
   currency: CardCurrency;
   date: string;
   installments: number;
+  statement_month?: string | null; // primer resumen elegido a mano (null = según la fecha)
 }
 
 export interface StatementItem {
@@ -96,6 +97,17 @@ export function firstStatementMonth(purchaseDate: string, closingDay: number): s
   const close = Math.min(closingDay, lastDay);
   const date = d <= close ? new Date(y, m - 1, 1) : new Date(y, m, 1);
   return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
+}
+
+const clampDay = (y: number, m: number, day: number) => new Date(y, m - 1, Math.min(day, new Date(y, m, 0).getDate()));
+const toISO = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}-${String(d.getDate()).padStart(2, "0")}`;
+
+/** Fechas de cierre y vencimiento del resumen de un mes (misma regla que el backend). */
+export function statementDates(card: Pick<CreditCard, "closing_day" | "due_day">, month: string) {
+  const [y, m] = month.split("-").map(Number);
+  const closing = clampDay(y, m, card.closing_day);
+  const due = card.due_day > card.closing_day ? clampDay(y, m, card.due_day) : clampDay(y, m + 1, card.due_day);
+  return { closing: toISO(closing), due: toISO(due) };
 }
 
 export function monthLabel(month: string, opts: Intl.DateTimeFormatOptions = { month: "long", year: "numeric" }): string {

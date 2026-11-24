@@ -7,7 +7,7 @@ import { API_URL, apiFetch } from "../../src/lib/api";
 import {
   CardsData, CreditCard, CardPurchase, CardCurrency, Statement,
   CARD_COLORS, cardGradient, cardDebtARS, firstStatementMonth, formatDay, formatMoney,
-  monthLabel, nextStatements, overdueStatements, shiftMonth, statementARS,
+  monthLabel, statementDates, nextStatements, overdueStatements, shiftMonth, statementARS,
 } from "../../src/lib/cards";
 
 const API = `${API_URL}/api/cards`;
@@ -39,6 +39,7 @@ export default function TarjetasPage() {
   const [pCurrency, setPCurrency] = useState<CardCurrency>("ARS");
   const [pDate, setPDate] = useState(todayISO());
   const [pInstallments, setPInstallments] = useState("1");
+  const [pStatement, setPStatement] = useState(""); // "" = automático según la fecha de compra
   const [saving, setSaving] = useState(false);
   const [formError, setFormError] = useState("");
 
@@ -136,6 +137,7 @@ export default function TarjetasPage() {
     setPAmount(purchase ? String(purchase.amount) : "");
     setPCurrency(purchase?.currency ?? "ARS");
     setPDate(purchase?.date ?? todayISO());
+    setPStatement(purchase?.statement_month ?? "");
     setPInstallments(String(purchase?.installments ?? 1));
     setFormError("");
   };
@@ -149,6 +151,7 @@ export default function TarjetasPage() {
       const body = {
         description: pDesc.trim(), amount: Number(pAmount), currency: pCurrency,
         date: pDate, installments: Math.max(1, Number(pInstallments) || 1),
+        statement_month: pStatement || null,
       };
       const editing = purchaseForm.editing;
       const res = await apiFetch(editing ? `${API}/purchases/${editing.id}` : `${API}/${pCard}/purchases`, {
@@ -162,7 +165,7 @@ export default function TarjetasPage() {
       const card = data?.cards.find(c => c.id === pCard);
       if (card) {
         setSelectedId(card.id);
-        setViewMonth(firstStatementMonth(pDate, card.closing_day));
+        setViewMonth(pStatement || firstStatementMonth(pDate, card.closing_day));
       }
       await fetchData();
     } catch {
@@ -363,7 +366,7 @@ export default function TarjetasPage() {
 
       {/* Modal tarjeta */}
       {cardForm && (
-        <div className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex justify-center items-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex justify-center items-center p-4" onMouseDown={e => { if (e.target === e.currentTarget) setCardForm(null); }}>
           <div className="bg-white dark:bg-[#111] rounded-[2.5rem] border border-slate-200 dark:border-[#222] max-w-md w-full p-8 shadow-2xl flex flex-col gap-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">{cardForm.editing ? "Editar tarjeta" : "Nueva tarjeta"}</h2>
@@ -406,7 +409,7 @@ export default function TarjetasPage() {
 
       {/* Modal compra */}
       {purchaseForm && (
-        <div className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex justify-center items-center p-4">
+        <div className="fixed inset-0 z-50 bg-black/60 dark:bg-black/80 backdrop-blur-sm flex justify-center items-center p-4" onMouseDown={e => { if (e.target === e.currentTarget) setPurchaseForm(null); }}>
           <div className="bg-white dark:bg-[#111] rounded-[2.5rem] border border-slate-200 dark:border-[#222] max-w-md w-full p-8 shadow-2xl flex flex-col gap-6 max-h-[90vh] overflow-y-auto">
             <div className="flex justify-between items-center">
               <h2 className="text-2xl font-extrabold text-slate-900 dark:text-white tracking-tight">{purchaseForm.editing ? "Editar compra" : "Nueva compra"}</h2>
@@ -431,14 +434,36 @@ export default function TarjetasPage() {
                 </div>
               </div>
               <div className="grid grid-cols-2 gap-3">
-                <div className="flex flex-col gap-2"><label className={label}>Fecha</label><input required type="date" value={pDate} onChange={e => setPDate(e.target.value)} className={`${input} cursor-pointer`} /></div>
+                <div className="flex flex-col gap-2"><label className={label}>Fecha de compra</label><input required type="date" value={pDate} onChange={e => setPDate(e.target.value)} className={`${input} cursor-pointer`} /></div>
                 <div className="flex flex-col gap-2"><label className={label}>Cuotas</label><input required type="number" min={1} max={60} value={pInstallments} onChange={e => setPInstallments(e.target.value)} className={`${input} text-right`} inputMode="numeric" /></div>
               </div>
-              {purchaseCard && amountN > 0 && pDate && (
-                <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-[#161616] rounded-xl px-3 py-2">
-                  {instN > 1 ? `${instN} cuotas de ${formatMoney(amountN / instN, pCurrency)}` : `Un pago de ${formatMoney(amountN, pCurrency)}`} · primer resumen: {monthLabel(firstStatementMonth(pDate, purchaseCard.closing_day))}
-                </p>
-              )}
+              {purchaseCard && pDate && (() => {
+                // Resumen automático según la fecha, o el elegido a mano
+                const auto = firstStatementMonth(pDate, purchaseCard.closing_day);
+                const first = pStatement || auto;
+                const options = Array.from({ length: 6 }, (_, i) => shiftMonth(auto, i - 2));
+                if (pStatement && !options.includes(pStatement)) options.push(pStatement);
+                const dueLabel = (m: string) => `${monthLabel(m)} · vence ${formatDay(statementDates(purchaseCard, m).due)}`;
+                return (
+                  <>
+                    <div className="flex flex-col gap-2">
+                      <label className={label}>Resumen donde se paga{instN > 1 ? " (1ª cuota)" : ""}</label>
+                      <select value={pStatement} onChange={e => setPStatement(e.target.value)} className={`${input} cursor-pointer`}>
+                        <option value="">Automático: {dueLabel(auto)}</option>
+                        {options.filter(m => m !== auto).map(m => <option key={m} value={m}>{dueLabel(m)}</option>)}
+                      </select>
+                      <span className="text-[11px] text-slate-400">
+                        Según la fecha de compra y el cierre del día {purchaseCard.closing_day}. Cámbialo si ya sabes en qué resumen lo pagas.
+                      </span>
+                    </div>
+                    {amountN > 0 && (
+                      <p className="text-[11px] font-semibold text-slate-500 dark:text-slate-400 bg-slate-50 dark:bg-[#161616] rounded-xl px-3 py-2">
+                        {instN > 1 ? `${instN} cuotas de ${formatMoney(amountN / instN, pCurrency)}` : `Un pago de ${formatMoney(amountN, pCurrency)}`} · {instN > 1 ? "primera en el" : "en el"} resumen de {dueLabel(first)}
+                      </p>
+                    )}
+                  </>
+                );
+              })()}
               {formError && <p className="text-xs font-semibold text-red-500 bg-red-50 dark:bg-red-500/10 rounded-xl px-3 py-2">{formError}</p>}
               <button type="submit" disabled={saving} className={`w-full mt-2 py-3.5 text-sm ${primaryBtn}`}>{saving ? "Guardando…" : purchaseForm.editing ? "Guardar cambios" : "Agregar compra"}</button>
             </form>

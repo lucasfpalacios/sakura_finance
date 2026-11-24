@@ -262,7 +262,7 @@ export default function TarjetasPage() {
             </div>
 
             {/* Tarjetas */}
-            <div className="flex gap-4 overflow-x-auto pb-2 -mx-1 px-1 snap-x">
+            <div className="flex gap-4 overflow-x-auto p-3 -m-3 snap-x">
               {data.cards.map(c => {
                 const next = upcoming.find(s => s.card_id === c.id);
                 const debt = cardDebtARS(data.statements, c.id, rates);
@@ -270,7 +270,7 @@ export default function TarjetasPage() {
                 const isSel = c.id === selectedId;
                 return (
                   <button key={c.id} onClick={() => selectCard(c)}
-                    className={`snap-start shrink-0 w-72 h-44 rounded-3xl p-5 text-left text-white bg-gradient-to-br ${cardGradient(c.color)} shadow-lg flex flex-col justify-between transition-all cursor-pointer ${isSel ? "ring-4 ring-pink-300/70 dark:ring-[#FFB7C5]/60 scale-[1.02]" : "opacity-80 hover:opacity-100"}`}>
+                    className={`snap-start shrink-0 w-72 h-44 rounded-3xl p-5 text-left text-white bg-gradient-to-br ${cardGradient(c.color)} shadow-lg flex flex-col justify-between transition-all cursor-pointer ${isSel ? "ring-2 ring-offset-4 ring-pink-400 ring-offset-slate-50 dark:ring-[#FFB7C5] dark:ring-offset-[#0a0a0a]" : "opacity-75 hover:opacity-100"}`}>
                     <div className="flex justify-between items-start">
                       <div>
                         <p className="text-lg font-extrabold leading-tight">{c.name}</p>
@@ -280,7 +280,9 @@ export default function TarjetasPage() {
                     </div>
                     <div>
                       <p className="text-[10px] font-bold uppercase tracking-wider text-white/70">Próximo resumen</p>
-                      <p className="text-xl font-extrabold">{next ? formatCurrency(statementARS(next, rates)) : "—"}</p>
+                      {next
+                        ? <p className="text-xl font-extrabold">{formatCurrency(statementARS(next, rates))}</p>
+                        : <p className="text-sm font-bold text-white/90 py-1">Sin cuotas pendientes</p>}
                     </div>
                     <div className="flex justify-between items-end gap-3 text-[11px] font-semibold text-white/85">
                       <span>Cierra {c.closing_day} · Vence {c.due_day}</span>

@@ -3,7 +3,8 @@ import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { FiSun, FiMoon } from "react-icons/fi";
 
-export default function ThemeSwitch() {
+// compact: botón redondo de un solo ícono (barra de escritorio, donde falta espacio)
+export default function ThemeSwitch({ compact = false }: { compact?: boolean }) {
   const [mounted, setMounted] = useState(false);
   const { theme, setTheme, resolvedTheme } = useTheme();
 
@@ -15,6 +16,20 @@ export default function ThemeSwitch() {
 
   const currentTheme = theme === "system" ? resolvedTheme : theme;
   const isDark = currentTheme === "dark";
+
+  if (compact) {
+    return (
+      <button
+        type="button"
+        aria-label={isDark ? "Cambiar a modo claro" : "Cambiar a modo oscuro"}
+        title={isDark ? "Modo claro" : "Modo oscuro"}
+        onClick={() => setTheme(isDark ? "light" : "dark")}
+        className="shrink-0 p-2 rounded-xl text-lg text-slate-600 hover:text-slate-800 dark:text-slate-400 dark:hover:text-slate-200 hover:bg-slate-100 dark:hover:bg-[#1a1a1a] transition-all cursor-pointer"
+      >
+        {isDark ? <FiSun className="text-yellow-400" /> : <FiMoon />}
+      </button>
+    );
+  }
 
   return (
     <button

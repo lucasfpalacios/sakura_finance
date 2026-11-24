@@ -15,13 +15,18 @@ export default function Navbar() {
   const { notifications, unreadCount, markAsRead, markAllAsRead, clearAll } = useNotifications();
   const [isOpen, setIsOpen] = useState(false);
   const [showNotifPopover, setShowNotifPopover] = useState(false);
+  const [showCurrency, setShowCurrency] = useState(false);
   const popoverRef = useRef<HTMLDivElement>(null);
+  const currencyRef = useRef<HTMLDivElement>(null);
 
   // Click outside to close notifications dropdown
   useEffect(() => {
     const handleOutsideClick = (e: MouseEvent) => {
       if (popoverRef.current && !popoverRef.current.contains(e.target as Node)) {
         setShowNotifPopover(false);
+      }
+      if (currencyRef.current && !currencyRef.current.contains(e.target as Node)) {
+        setShowCurrency(false);
       }
     };
     document.addEventListener("mousedown", handleOutsideClick);
@@ -62,13 +67,13 @@ export default function Navbar() {
         <Link href="/" className="shrink-0">
           <div className="flex items-center gap-2 cursor-pointer">
             <span className="text-2xl">🌸</span>
-            <h1 className="text-lg sm:text-xl lg:text-2xl font-bold text-slate-950 dark:text-white tracking-tight">
-              Finanzas<span className="text-pink-500 dark:text-[#FFB7C5]">Sakura</span>
+            <h1 className="text-xl lg:text-2xl font-bold tracking-tight text-pink-500 dark:text-[#FFB7C5]">
+              Sakura
             </h1>
           </div>
         </Link>
 
-        {/* Desktop Links: íconos entre lg y xl; desde xl el activo muestra texto y desde 2xl todos. Nunca se parten en dos líneas */}
+        {/* Desktop Links: solo íconos entre lg y xl; ícono + nombre desde xl. Nunca se parten en dos líneas */}
         <div className="hidden lg:flex items-center gap-1 ml-6 xl:ml-8 flex-1 min-w-0">
           {[
             { href: "/", label: "Dashboard", Icon: PieIcon },
@@ -83,7 +88,7 @@ export default function Navbar() {
               <Link key={href} href={href} title={label}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm whitespace-nowrap transition-all duration-300 ${active ? "bg-pink-100 dark:bg-[#FFB7C5]/10 text-pink-600 dark:text-[#FFB7C5] font-semibold" : "text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-[#1a1a1a]"}`}>
                 <Icon className="text-lg shrink-0" />
-                <span className={active ? "hidden xl:inline" : "hidden 2xl:inline"}>{label}</span>
+                <span className="hidden xl:inline">{label}</span>
               </Link>
             );
           })}
@@ -171,18 +176,31 @@ export default function Navbar() {
             )}
           </div>
 
-          <div className="flex bg-slate-100 dark:bg-[#111] rounded-xl p-1 relative border border-slate-200 dark:border-[#222]">
-            {(["ARS", "USD", "EUR"] as const).map((c) => (
-              <button
-                key={c}
-                onClick={() => setCurrency(c)}
-                className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all duration-300 cursor-pointer ${currency === c ? "bg-white dark:bg-[#222] text-pink-500 dark:text-[#FFB7C5] shadow-sm" : "text-slate-500 hover:text-slate-700 dark:hover:text-slate-300"}`}
-              >
-                {c}
-              </button>
-            ))}
+          {/* Moneda: botón compacto con menú (deja lugar para los nombres de las secciones) */}
+          <div className="relative" ref={currencyRef}>
+            <button
+              onClick={() => setShowCurrency(v => !v)}
+              aria-label="Moneda principal"
+              className="flex items-center gap-1 px-3 py-1.5 rounded-xl border border-slate-200 dark:border-[#222] bg-slate-100 dark:bg-[#111] text-xs font-bold text-pink-500 dark:text-[#FFB7C5] cursor-pointer hover:border-pink-300 dark:hover:border-[#FFB7C5]/40 transition-all"
+            >
+              {currency}
+              <svg className={`h-3 w-3 fill-current text-slate-400 transition-transform ${showCurrency ? "rotate-180" : ""}`} viewBox="0 0 20 20"><path d="M9.293 12.95l.707.707L15.657 8l-1.414-1.414L10 10.828 5.757 6.586 4.343 8z" /></svg>
+            </button>
+            {showCurrency && (
+              <div className="absolute right-0 mt-2 w-28 bg-white dark:bg-[#111] border border-slate-200 dark:border-[#2a2a2a] rounded-xl shadow-xl p-1 z-50 flex flex-col">
+                {(["ARS", "USD", "EUR"] as const).map((c) => (
+                  <button
+                    key={c}
+                    onClick={() => { setCurrency(c); setShowCurrency(false); }}
+                    className={`text-left px-3 py-2 text-xs font-bold rounded-lg cursor-pointer transition-colors ${currency === c ? "bg-pink-50 dark:bg-[#FFB7C5]/10 text-pink-500 dark:text-[#FFB7C5]" : "text-slate-600 dark:text-slate-300 hover:bg-slate-50 dark:hover:bg-[#1a1a1a]"}`}
+                  >
+                    {c}
+                  </button>
+                ))}
+              </div>
+            )}
           </div>
-          <ThemeSwitch />
+          <ThemeSwitch compact />
           {avatar}
         </div>
 

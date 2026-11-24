@@ -1,7 +1,7 @@
 "use client";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { FiPieChart, FiTrendingUp, FiAlertTriangle, FiMenu, FiX, FiBell, FiCreditCard, FiTarget } from "react-icons/fi";
+import { FiPieChart, FiTrendingUp, FiAlertTriangle, FiMenu, FiX, FiBell, FiCreditCard, FiTarget, FiFileText } from "react-icons/fi";
 import { useCurrency } from "../../app/context/CurrencyContext";
 import { useNotifications } from "../../app/context/NotificationContext";
 import ThemeSwitch from "./ThemeSwitch";
@@ -34,6 +34,7 @@ export default function Navbar() {
   const AlertIcon = FiAlertTriangle as any;
   const BellIcon = FiBell as any;
   const CreditCardIcon = FiCreditCard as any;
+  const DebtIcon = FiFileText as any;
   const TargetIcon = FiTarget as any;
 
   // Sin sesión (pantalla de login) no se muestra la navegación
@@ -67,13 +68,14 @@ export default function Navbar() {
           </div>
         </Link>
 
-        {/* Desktop Links: solo íconos entre lg y xl; ícono + texto desde xl. Nunca se parten en dos líneas */}
+        {/* Desktop Links: íconos entre lg y xl; desde xl el activo muestra texto y desde 2xl todos. Nunca se parten en dos líneas */}
         <div className="hidden lg:flex items-center gap-1 ml-6 xl:ml-8 flex-1 min-w-0">
           {[
             { href: "/", label: "Dashboard", Icon: PieIcon },
             { href: "/inversiones", label: "Inversiones", Icon: TrendingIcon },
             { href: "/alertas", label: "Gastos Hormiga", Icon: AlertIcon },
-            { href: "/deudas", label: "Deudas", Icon: CreditCardIcon },
+            { href: "/tarjetas", label: "Tarjetas", Icon: CreditCardIcon },
+            { href: "/deudas", label: "Deudas", Icon: DebtIcon },
             { href: "/planificacion", label: "Planificación", Icon: TargetIcon },
           ].map(({ href, label, Icon }) => {
             const active = pathname === href;
@@ -81,7 +83,7 @@ export default function Navbar() {
               <Link key={href} href={href} title={label}
                 className={`flex items-center gap-2 px-3 py-2 rounded-xl text-sm whitespace-nowrap transition-all duration-300 ${active ? "bg-pink-100 dark:bg-[#FFB7C5]/10 text-pink-600 dark:text-[#FFB7C5] font-semibold" : "text-slate-500 hover:text-slate-800 hover:bg-slate-100 dark:hover:text-slate-200 dark:hover:bg-[#1a1a1a]"}`}>
                 <Icon className="text-lg shrink-0" />
-                <span className="hidden xl:inline">{label}</span>
+                <span className={active ? "hidden xl:inline" : "hidden 2xl:inline"}>{label}</span>
               </Link>
             );
           })}
@@ -282,9 +284,15 @@ export default function Navbar() {
                 <span>Gastos Hormiga</span>
               </div>
             </Link>
+            <Link href="/tarjetas" onClick={() => setIsOpen(false)}>
+              <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 ${pathname === "/tarjetas" ? "bg-pink-100 dark:bg-[#FFB7C5]/10 text-pink-600 dark:text-[#FFB7C5] font-semibold" : "text-slate-500"}`}>
+                <CreditCardIcon className="text-xl" />
+                <span>Tarjetas</span>
+              </div>
+            </Link>
             <Link href="/deudas" onClick={() => setIsOpen(false)}>
               <div className={`flex items-center gap-3 px-4 py-3 rounded-2xl transition-all duration-300 ${pathname === "/deudas" ? "bg-pink-100 dark:bg-[#FFB7C5]/10 text-pink-600 dark:text-[#FFB7C5] font-semibold" : "text-slate-500"}`}>
-                <CreditCardIcon className="text-xl" />
+                <DebtIcon className="text-xl" />
                 <span>Deudas</span>
               </div>
             </Link>

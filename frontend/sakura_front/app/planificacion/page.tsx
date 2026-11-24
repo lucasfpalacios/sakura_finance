@@ -5,6 +5,7 @@ import { useCurrency } from "../context/CurrencyContext";
 import Link from "next/link";
 import { FiPlus, FiTrash2, FiEdit2, FiX, FiCalendar, FiCheck } from "react-icons/fi";
 import { apiFetch } from "../../src/lib/api";
+import { Statement, nextStatements, statementARS, formatDay } from "../../src/lib/cards";
 
 type Kind = "fixed" | "planned" | "goals";
 type Cur = "ARS" | "USD" | "EUR";
@@ -44,6 +45,8 @@ const DEBTS_API = `${process.env.NEXT_PUBLIC_API_URL}/api/debts`;
 const CURRENCIES: Cur[] = ["ARS", "USD", "EUR"];
 const MONTH_OPTIONS = [1, 2, 3, 4, 5, 6, 9, 12, 18, 24, 36, 48, 60];
 const DEBT_BAR = "bg-sky-400";
+const CARDS_BAR = "bg-fuchsia-400";
+const CARDS_API = `${process.env.NEXT_PUBLIC_API_URL}/api/cards`;
 
 // Textos y colores de cada sección
 const KIND_CONFIG: Record<Kind, {
@@ -101,6 +104,8 @@ export default function PlanificacionPage() {
   const { currency, rates, formatCurrency } = useCurrency();
   const [plan, setPlan] = useState<Plan | null>(null);
   const [debts, setDebts] = useState<Debt[]>([]);
+  const [cardStatements, setCardStatements] = useState<Statement[]>([]);
+  const [cardNames, setCardNames] = useState<Record<string, string>>({});
   // Moneda en la que se VISUALIZA cada deuda (solo vista: no modifica la deuda cargada)
   const [debtView, setDebtView] = useState<Record<string, Cur>>({});
   const [loading, setLoading] = useState(true);
@@ -131,11 +136,16 @@ export default function PlanificacionPage() {
 
   const fetchPlan = async () => {
     try {
-      const [res, debtsRes] = await Promise.all([apiFetch(API), apiFetch(DEBTS_API)]);
+      const [res, debtsRes, cardsRes] = await Promise.all([apiFetch(API), apiFetch(DEBTS_API), apiFetch(CARDS_API)]);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
       setPlan(await res.json());
       // Si falla deudas, la planificación igual se muestra
       if (debtsRes.ok) setDebts(await debtsRes.json());
+      if (cardsRes.ok) {
+        const cd = await cardsRes.json();
+        setCardStatements(cd.statements || []);
+        setCardNames(Object.fromEntries((cd.cards || []).map((c: { id: string; name: string }) => [c.id, c.name])));
+      }
       setError("");
     } catch (err) {
       console.error("Error al cargar la planificación:", err);
@@ -194,9 +204,13 @@ export default function PlanificacionPage() {
     const debtsMonthly = debtItems.reduce((s, d) => s + d.monthly, 0);
     const debtsTotal = debtItems.reduce((s, d) => s + toARS(d.amount, d.currency), 0);
 
-    const committed = fixed + plannedMonthly + goalsMonthly + debtsMonthly;
-    return { income, fixed, planned, plannedMonthly, goals, goalsMonthly, debtItems, debtsMonthly, debtsTotal, committed, free: income - committed };
-  }, [plan, debts, toARS]);
+    // Tarjetas: el próximo resumen a pagar de cada una
+    const cardsNext = nextStatements(cardStatements);
+    const cardsMonthly = cardsNext.reduce((s, st) => s + statementARS(st, rates), 0);
+
+    const committed = fixed + plannedMonthly + goalsMonthly + debtsMonthly + cardsMonthly;
+    return { income, fixed, planned, plannedMonthly, goals, goalsMonthly, debtItems, debtsMonthly, debtsTotal, cardsNext, cardsMonthly, committed, free: income - committed };
+  }, [plan, debts, cardStatements, rates, toARS]);
 
   // ---- Acciones ----
   const openIncomeEdit = () => {
@@ -371,6 +385,7 @@ export default function PlanificacionPage() {
     { value: summary.plannedMonthly, cls: KIND_CONFIG.planned.bar },
     { value: summary.goalsMonthly, cls: KIND_CONFIG.goals.bar },
     { value: summary.debtsMonthly, cls: DEBT_BAR },
+    { value: summary.cardsMonthly, cls: CARDS_BAR },
   ].reduce<{ cls: string; width: number; used: number }[]>((acc, seg) => {
     const used = acc.length ? acc[acc.length - 1].used : 0;
     const width = Math.max(0, Math.min(pct(seg.value), 100 - used));
@@ -434,12 +449,13 @@ export default function PlanificacionPage() {
                   <div key={seg.cls} className={seg.cls} style={{ width: `${seg.width}%` }} />
                 ))}
               </div>
-              <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-xs">
+              <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-6 gap-3 text-xs">
                 {[
                   { label: "Gastos fijos", value: summary.fixed, dot: KIND_CONFIG.fixed.bar },
                   { label: "Reserva proyectados", value: summary.plannedMonthly, dot: KIND_CONFIG.planned.bar },
                   { label: "Aporte a metas", value: summary.goalsMonthly, dot: KIND_CONFIG.goals.bar },
                   { label: "Pago de deudas", value: summary.debtsMonthly, dot: DEBT_BAR },
+                  { label: "Tarjetas", value: summary.cardsMonthly, dot: CARDS_BAR },
                   { label: "Libre", value: Math.max(0, summary.free), dot: "bg-emerald-300 dark:bg-emerald-700" },
                 ].map(s => (
                   <div key={s.label} className="flex items-start gap-2">
@@ -453,7 +469,7 @@ export default function PlanificacionPage() {
               </div>
               {overBudget && (
                 <p className="text-xs font-semibold text-red-500 bg-red-50 dark:bg-red-500/10 rounded-xl px-3 py-2">
-                  Tus compromisos mensuales superan tu ingreso. Prueba mover fechas más lejos, alargar el plazo de alguna deuda o reducir algún gasto fijo.
+                  Tus compromisos mensuales superan tu ingreso. Prueba mover fechas más lejos, alargar el plazo de alguna deuda, revisar las cuotas de tarjeta o reducir algún gasto fijo.
                 </p>
               )}
             </div>
@@ -545,6 +561,41 @@ export default function PlanificacionPage() {
               </div>
             ))
           )}
+
+          {/* Tarjetas: próximo resumen de cada una (se calcula en la sección Tarjetas) */}
+          <div className={`${card} p-6 flex flex-col gap-4 lg:col-span-3`}>
+            <div className="flex justify-between items-start gap-4">
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-900 dark:text-white">💳 Tarjetas</h2>
+                <p className="text-xs text-slate-500 dark:text-slate-400 mt-1">Lo que vas a pagar en el próximo resumen de cada tarjeta. Se suma a tus compromisos del mes.</p>
+              </div>
+              <Link href="/tarjetas" className="text-xs font-bold text-pink-500 dark:text-[#FFB7C5] hover:underline shrink-0">Ir a Tarjetas →</Link>
+            </div>
+            <div className="flex justify-between items-baseline border-b border-slate-100 dark:border-[#222] pb-3">
+              <span className={label}>Próximos resúmenes</span>
+              <span className="text-xl font-extrabold text-fuchsia-600 dark:text-fuchsia-400">{formatCurrency(summary.cardsMonthly)}</span>
+            </div>
+            {summary.cardsNext.length === 0 ? (
+              <p className="text-sm text-slate-400 dark:text-slate-500 italic text-center py-4">No tienes resúmenes pendientes.</p>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-3">
+                {summary.cardsNext.map(st => (
+                  <div key={st.card_id} className={itemBox}>
+                    <div className="flex justify-between items-start gap-3">
+                      <div>
+                        <p className="text-sm font-bold text-slate-800 dark:text-slate-200">{cardNames[st.card_id] ?? "Tarjeta"}</p>
+                        <p className="flex items-center gap-1 text-[10px] font-bold uppercase text-slate-400 mt-1"><CalendarIcon size={10} /> Vence {formatDay(st.due_date)}</p>
+                      </div>
+                      <div className="text-right">
+                        {st.total_ars > 0 && <p className="text-sm font-extrabold text-slate-950 dark:text-white">{formatOriginal(st.total_ars, "ARS")}</p>}
+                        {st.total_usd > 0 && <p className="text-sm font-extrabold text-slate-950 dark:text-white">{formatOriginal(st.total_usd, "USD")}</p>}
+                      </div>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
 
           {/* Pago de deudas: toma las deudas pendientes de la sección Deudas */}
           <div className={`${card} p-6 flex flex-col gap-4 lg:col-span-3`}>

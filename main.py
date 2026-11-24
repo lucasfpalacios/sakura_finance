@@ -6,6 +6,7 @@ from datetime import datetime
 from models import Category, Transaction, Investment, Portfolio, Debt, PlanItem, BudgetPlan
 from db import get_db
 from auth import router as auth_router, get_current_user
+from cards import router as cards_router
 
 # Cada usuario tiene su documento de wallet / investments / planning con _id = user id,
 # y sus deudas llevan el campo user_id.
@@ -13,6 +14,7 @@ CurrentUser = Depends(get_current_user)
 
 app = FastAPI()
 app.include_router(auth_router)
+app.include_router(cards_router)
 
 app.add_middleware(
     CORSMiddleware,

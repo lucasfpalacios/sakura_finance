@@ -6,6 +6,8 @@ import { useCurrency } from "./context/CurrencyContext";
 import { useNotifications } from "./context/NotificationContext";
 import { FiEdit2, FiTrash2, FiX } from "react-icons/fi";
 import { apiFetch } from "../src/lib/api";
+import { Statement, monthCardsARS, statementARS, formatMoney } from "../src/lib/cards";
+import Link from "next/link";
 
 const getEmoji = (text: string) => {
   const lower = text.toLowerCase();
@@ -46,6 +48,8 @@ export default function Home() {
   const [chartView, setChartView] = useState<"balance" | "details" | "investments" | "debts" | "hormiga">("balance");
   const [investments, setInvestments] = useState<any[]>([]);
   const [debts, setDebts] = useState<any[]>([]);
+  const [cardStatements, setCardStatements] = useState<Statement[]>([]);
+  const [cardNames, setCardNames] = useState<Record<string, string>>({});
 
   const [amount, setAmount] = useState("");
   const [description, setDescription] = useState("");
@@ -117,6 +121,14 @@ export default function Home() {
       const debtsRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/debts`);
       if (debtsRes.ok) {
         setDebts(await debtsRes.json());
+      }
+
+      // Tarjetas: la cuota de cada resumen suma como gasto del mes en que cierra
+      const cardsRes = await apiFetch(`${process.env.NEXT_PUBLIC_API_URL}/api/cards`);
+      if (cardsRes.ok) {
+        const cardsData = await cardsRes.json();
+        setCardStatements(cardsData.statements || []);
+        setCardNames(Object.fromEntries((cardsData.cards || []).map((c: any) => [c.id, c.name])));
       }
       
       refreshNotifications();
@@ -291,6 +303,11 @@ export default function Home() {
     return { name: cat.name, value: catTotal };
   }).filter((data: any) => data.value > 0) || [];
 
+  // Cuotas de tarjeta del mes seleccionado (USD convertido a ARS)
+  const cardsMonthTotal = monthCardsARS(cardStatements, currentMonth, rates);
+  const cardsMonthStatements = cardStatements.filter(st => st.month === currentMonth);
+  if (cardsMonthTotal > 0) chartData.push({ name: "💳 Tarjetas", value: cardsMonthTotal });
+
   const totalGlobal = chartData.reduce((sum: number, item: any) => sum + item.value, 0);
 
   // Ingresos del mes seleccionado (mismo criterio que totalGlobal para gastos)
@@ -395,6 +412,13 @@ export default function Home() {
       });
     }
     
+    // Tarjetas: cada resumen suma al gasto del mes en que cierra
+    cardStatements.forEach(st => {
+      if (st.month.startsWith(String(selectedYear)) && monthsMap[st.month]) {
+        monthsMap[st.month].expense += statementARS(st, rates);
+      }
+    });
+
     return Object.keys(monthsMap).sort().map(month => {
       const date = new Date(month + "-15");
       return {
@@ -808,8 +832,36 @@ export default function Home() {
               <h2 className="text-2xl font-semibold text-slate-800 dark:text-white">Transacciones Recientes</h2>
               
               {/* Solo categorías con movimientos en el mes seleccionado */}
-              {!wallet?.subcategories?.some((c: any) => c.transactions?.length > 0) && (
+              {!wallet?.subcategories?.some((c: any) => c.transactions?.length > 0) && cardsMonthStatements.length === 0 && (
                  <p className="text-slate-500 dark:text-gray-500 italic">No hay movimientos cargados en este mes.</p>
+              )}
+
+              {/* Cuotas de tarjeta que cierran este mes */}
+              {cardsMonthStatements.length > 0 && (
+                <div className="bg-white dark:bg-[#111] p-6 rounded-3xl border border-slate-200 dark:border-[#222] shadow-[0_4px_20px_rgb(0,0,0,0.03)] dark:shadow-none">
+                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6 pb-4 border-b border-slate-100 dark:border-[#222]">
+                    <h3 className="text-xl font-bold text-slate-800 dark:text-white tracking-wide flex items-center gap-2">
+                      💳 Tarjetas
+                      <Link href="/tarjetas" className="text-xs font-bold text-pink-500 dark:text-[#FFB7C5] hover:underline">Ver detalle →</Link>
+                    </h3>
+                    <div className="bg-slate-50 dark:bg-[#1a1a1a] px-4 py-1.5 rounded-full border border-slate-100 dark:border-[#333] w-max">
+                      <span className="text-slate-600 dark:text-slate-300 text-sm font-medium font-mono whitespace-nowrap">Total: {formatCurrency(cardsMonthTotal)}</span>
+                    </div>
+                  </div>
+                  <ul className="space-y-3">
+                    {cardsMonthStatements.flatMap(st => st.items.map(item => (
+                      <li key={`${st.card_id}-${item.purchase_id}-${item.installment}`} className="flex justify-between items-center bg-slate-50/50 dark:bg-[#161616] border border-slate-100 dark:border-[#1f1f1f] p-3 sm:p-4 rounded-2xl gap-3">
+                        <div className="min-w-0">
+                          <p className="font-semibold text-slate-800 dark:text-slate-200 truncate">{item.description}</p>
+                          <p className="text-xs text-slate-400">
+                            {cardNames[st.card_id] ?? "Tarjeta"}{item.installments > 1 && ` · cuota ${item.installment}/${item.installments}`}
+                          </p>
+                        </div>
+                        <span className="font-bold text-slate-900 dark:text-white whitespace-nowrap">{formatMoney(item.amount, item.currency)}</span>
+                      </li>
+                    )))}
+                  </ul>
+                </div>
               )}
 
               {wallet?.subcategories?.filter((cat: any) => cat.transactions?.length > 0).map((cat: any) => {
